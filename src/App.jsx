@@ -379,15 +379,18 @@ const generateACSteps = (text, patternsInput) => {
 
   const layout = calculateTrieLayout(trie);
 
+  let u = 0;
+  const allMatches = []; // Track all matches found so far
+  
   steps.push({
     type: 'init',
     trie, layout,
     node: 0,
     i: -1,
+    matches: [],
     desc: { en: "AC Automaton Built. Ready to search.", zh: "AC 自动机已构建。准备搜索。" }
   });
-
-  let u = 0;
+  
   for (let i = 0; i < text.length; i++) {
     const char = text[i];
     
@@ -395,8 +398,18 @@ const generateACSteps = (text, patternsInput) => {
         type: 'input',
         trie, layout, node: u, i,
         char,
+        matches: [...allMatches], // Include matches found so far
         desc: { en: `Read character '${char}'. Current State: ${u}.`, zh: `读取字符 '${char}'。当前状态：${u}。` }
     });
+
+    // Track failure link path
+    const failPath = [];
+    let tempU = u;
+    while (tempU > 0 && !trie[tempU].next[char]) {
+      failPath.push(tempU);
+      tempU = trie[tempU].fail;
+    }
+    failPath.push(tempU); // Include final state
 
     while (u > 0 && !trie[u].next[char]) {
       let prev = u;
@@ -405,6 +418,8 @@ const generateACSteps = (text, patternsInput) => {
         type: 'fail',
         trie, layout, node: u, i,
         prevNode: prev,
+        failPath: failPath, // Include the full path
+        matches: [...allMatches],
         desc: { en: `No transition for '${char}'. Follow Fail link ${prev} -> ${u}.`, zh: `没有 '${char}' 的转移。跟随失败链接 ${prev} -> ${u}。` }
       });
     }
@@ -416,15 +431,28 @@ const generateACSteps = (text, patternsInput) => {
         type: 'goto',
         trie, layout, node: u, i,
         prevNode: prev,
+        transitionChar: char,
+        matches: [...allMatches],
         desc: { en: `Transition ${prev} --${char}--> ${u}.`, zh: `状态转移 ${prev} --${char}--> ${u}。` }
       });
     }
 
     if (trie[u].output.length > 0) {
+      // Calculate match positions for each found pattern
+      const newMatches = [];
+      trie[u].output.forEach(pattern => {
+        const endPos = i;
+        const startPos = endPos - pattern.length + 1;
+        newMatches.push({ pattern, start: startPos, end: endPos });
+        allMatches.push({ pattern, start: startPos, end: endPos });
+      });
+      
       steps.push({
         type: 'match',
         trie, layout, node: u, i,
         found: trie[u].output,
+        newMatches: newMatches, // New matches found in this step
+        matches: [...allMatches], // All matches found so far
         desc: { en: `Output at state ${u}: ${trie[u].output.join(', ')}.`, zh: `状态 ${u} 输出：${trie[u].output.join(', ')}。` }
       });
     }
@@ -601,6 +629,103 @@ const CodeViewer = ({ code, highlightedLine, stepType }) => {
   );
 };
 
+// Transition Table Component
+const TransitionTable = ({ trie, currentNode, transitionChar, stepType }) => {
+  if (!trie || trie.length === 0) return null;
+  
+  // Get all unique characters used in transitions
+  const allChars = new Set();
+  trie.forEach(node => {
+    Object.keys(node.next).forEach(char => allChars.add(char));
+  });
+  const sortedChars = Array.from(allChars).sort();
+  
+  // Limit display to reasonable number of states
+  const maxStates = Math.min(15, trie.length);
+  
+  return (
+    <div className="bg-white rounded-lg border border-gray-300 shadow-sm overflow-hidden">
+      <div className="bg-gray-800 text-white px-4 py-2 font-semibold text-sm">
+        Transition Table / 转移表
+      </div>
+      <div className="overflow-x-auto max-h-96 overflow-y-auto">
+        <table className="w-full text-xs border-collapse">
+          <thead>
+            <tr className="bg-gray-100 border-b border-gray-300 sticky top-0">
+              <th className="px-2 py-2 text-left border-r border-gray-300 font-semibold">State / 状态</th>
+              {sortedChars.map(char => (
+                <th key={char} className={`px-2 py-2 text-center border-r border-gray-300 font-semibold ${
+                  stepType === 'goto' && transitionChar === char ? 'bg-blue-100' : ''
+                }`}>
+                  '{char}'
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {trie.slice(0, maxStates).map((node, stateId) => (
+              <tr 
+                key={stateId} 
+                className={`border-b border-gray-200 hover:bg-gray-50 ${
+                  currentNode === stateId ? 'bg-blue-50 font-semibold' : ''
+                }`}
+              >
+                <td className={`px-2 py-2 border-r border-gray-300 ${
+                  currentNode === stateId ? 'text-blue-700' : 'text-gray-700'
+                }`}>
+                  {stateId}
+                  {node.output.length > 0 && (
+                    <span className="ml-1 text-green-600">★</span>
+                  )}
+                </td>
+                {sortedChars.map(char => {
+                  const nextState = node.next[char];
+                  const isActive = currentNode === stateId && stepType === 'goto' && transitionChar === char;
+                  return (
+                    <td 
+                      key={char}
+                      className={`px-2 py-2 text-center border-r border-gray-300 ${
+                        isActive 
+                          ? 'bg-blue-200 font-bold text-blue-800 animate-pulse' 
+                          : nextState !== undefined 
+                            ? 'text-gray-700' 
+                            : 'text-gray-300'
+                      }`}
+                    >
+                      {nextState !== undefined ? nextState : '-'}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {trie.length > maxStates && (
+          <div className="px-4 py-2 text-xs text-gray-500 bg-gray-50 border-t">
+            Showing first {maxStates} of {trie.length} states
+          </div>
+        )}
+      </div>
+      <div className="px-4 py-2 bg-gray-50 border-t border-gray-200 text-xs text-gray-600">
+        <div className="flex items-center gap-4">
+          <span className="flex items-center gap-1">
+            <span className="w-3 h-3 bg-blue-50 border border-blue-300"></span>
+            Current State
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="w-3 h-3 bg-blue-200"></span>
+            Active Transition
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="text-green-600">★</span>
+            Output State
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // --- Components ---
 
 const ControlButton = ({ onClick, icon: Icon, disabled }) => (
@@ -683,22 +808,60 @@ const App = () => {
   const step = steps[currentStep] || {};
 
   // Render Helpers
-  const renderHighlightText = (str, activeIndices = [], color = 'bg-orange-200') => {
+  const renderHighlightText = (str, activeIndices = [], color = 'bg-orange-200', matches = []) => {
+    // Color palette for different patterns
+    const matchColors = [
+      'bg-green-200 border-green-400',
+      'bg-purple-200 border-purple-400',
+      'bg-pink-200 border-pink-400',
+      'bg-yellow-200 border-yellow-400',
+      'bg-cyan-200 border-cyan-400',
+    ];
+    
+    // Create a map of index to match info
+    const matchMap = new Map();
+    matches.forEach((match, idx) => {
+      for (let i = match.start; i <= match.end; i++) {
+        if (!matchMap.has(i) || matchMap.get(i).priority < idx) {
+          matchMap.set(i, { 
+            pattern: match.pattern, 
+            color: matchColors[idx % matchColors.length],
+            priority: idx 
+          });
+        }
+      }
+    });
+    
     return (
       <div className="flex font-mono text-lg overflow-x-auto pb-2 pt-3">
         {str.split('').map((char, idx) => {
            let bg = 'bg-white scale-100';
            let border = 'border-gray-200';
+           let matchLabel = null;
            
-           if (activeIndices.includes(idx)) {
+           // Check if this index is part of a matched pattern
+           if (matchMap.has(idx)) {
+             const matchInfo = matchMap.get(idx);
+             bg = `${matchInfo.color.split(' ')[0]} scale-110 shadow-sm`;
+             border = matchInfo.color.split(' ')[1];
+             // Show pattern label on first character of match
+             if (idx === matches.find(m => m.start === idx)?.start) {
+               matchLabel = matchInfo.pattern;
+             }
+           } else if (activeIndices.includes(idx)) {
                bg = `${color} scale-110 shadow-sm`;
                border = color.replace('bg-', 'border-').replace('200', '400');
            }
            
            return (
-             <div key={idx} className={`flex flex-col items-center justify-center w-8 h-12 border mx-0.5 rounded transition-all duration-300 ease-in-out overflow-visible ${bg} ${border}`}>
-               <span className="leading-none">{char || '\u00A0'}</span>
+             <div key={idx} className={`flex flex-col items-center justify-center w-8 h-12 border mx-0.5 rounded transition-all duration-300 ease-in-out overflow-visible relative ${bg} ${border}`}>
+               <span className="leading-none mt-2">{char || '\u00A0'}</span>
                <span className="text-[10px] text-gray-400 mt-0.5">{idx}</span>
+               {matchLabel && (
+                 <span className="absolute -top-5 text-[9px] font-bold text-gray-700 whitespace-nowrap bg-white px-1 rounded border border-gray-300 shadow-sm">
+                   {matchLabel}
+                 </span>
+               )}
              </div>
            )
         })}
@@ -818,15 +981,24 @@ const App = () => {
                        const source = nodes[link.source];
                        const target = nodes[link.target];
                        const isFail = link.type === 'fail';
+                       // Check if this is part of the active failure path
+                       const isActiveFailPath = step.type === 'fail' && 
+                         step.failPath && 
+                         step.failPath.includes(link.source) && 
+                         step.failPath.includes(link.target) &&
+                         step.failPath.indexOf(link.source) + 1 === step.failPath.indexOf(link.target);
+                       
                        return (
                            <g key={`link-${idx}`}>
                                <line 
                                    x1={source.x} y1={source.y} 
                                    x2={target.x} y2={target.y} 
-                                   stroke={isFail ? "#f87171" : "#cbd5e1"} 
-                                   strokeWidth={isFail ? 1.5 : 2}
+                                   stroke={isActiveFailPath ? "#ef4444" : isFail ? "#f87171" : "#cbd5e1"} 
+                                   strokeWidth={isActiveFailPath ? 3 : isFail ? 1.5 : 2}
                                    strokeDasharray={isFail ? "5,5" : "0"}
                                    markerEnd={isFail ? "url(#arrowhead-fail)" : "url(#arrowhead)"}
+                                   opacity={isActiveFailPath ? 1 : isFail ? 0.4 : 1}
+                                   className={isActiveFailPath ? "animate-pulse" : ""}
                                />
                                {!isFail && (
                                    <text 
@@ -842,6 +1014,63 @@ const App = () => {
                            </g>
                        )
                     })}
+                    
+                    {/* Animated Failure Path Trail */}
+                    {step.type === 'fail' && step.failPath && step.failPath.length > 1 && (
+                      <g>
+                        {step.failPath.slice(0, -1).map((nodeId, idx) => {
+                          const sourceNode = nodes[nodeId];
+                          const targetNode = nodes[step.failPath[idx + 1]];
+                          if (!sourceNode || !targetNode) return null;
+                          
+                          return (
+                            <g key={`fail-trail-${idx}`}>
+                              {/* Animated path line with pulsing effect */}
+                              <line
+                                x1={sourceNode.x}
+                                y1={sourceNode.y}
+                                x2={targetNode.x}
+                                y2={targetNode.y}
+                                stroke="#ef4444"
+                                strokeWidth="4"
+                                strokeDasharray="8,4"
+                                opacity="0.9"
+                                markerEnd="url(#arrowhead-fail)"
+                                className="animate-pulse"
+                              />
+                              {/* Highlight circles at path nodes */}
+                              <circle
+                                cx={sourceNode.x}
+                                cy={sourceNode.y}
+                                r="25"
+                                fill="none"
+                                stroke="#ef4444"
+                                strokeWidth="2"
+                                opacity="0.5"
+                                className="animate-ping"
+                              />
+                            </g>
+                          );
+                        })}
+                        {/* Final destination highlight */}
+                        {step.failPath.length > 0 && (() => {
+                          const finalNode = nodes[step.failPath[step.failPath.length - 1]];
+                          if (!finalNode) return null;
+                          return (
+                            <circle
+                              cx={finalNode.x}
+                              cy={finalNode.y}
+                              r="25"
+                              fill="none"
+                              stroke="#ef4444"
+                              strokeWidth="3"
+                              opacity="0.7"
+                              className="animate-pulse"
+                            />
+                          );
+                        })()}
+                      </g>
+                    )}
 
                     {/* Nodes */}
                     {nodes.map((node) => {
@@ -1185,6 +1414,21 @@ const App = () => {
               <ControlButton icon={SkipForward} onClick={() => { setIsPlaying(false); setCurrentStep(Math.min(steps.length - 1, currentStep + 1)); }} disabled={currentStep === steps.length - 1} />
             </div>
 
+            {/* Explanation Box */}
+            <div className="mb-6 bg-blue-50 border-l-4 border-blue-500 p-4 rounded-r-lg shadow-sm min-h-[100px] transition-all duration-300">
+              <div className="flex items-start">
+                <Info className="text-blue-500 mr-3 mt-1 flex-shrink-0" size={20} />
+                <div className="w-full">
+                  <p className="text-blue-900 font-medium text-lg leading-relaxed">
+                    {step.desc?.en || "Ready to start..."}
+                  </p>
+                  <p className="text-blue-700/80 mt-2 border-t border-blue-200 pt-2 text-base">
+                    {step.desc?.zh || "准备开始..."}
+                  </p>
+                </div>
+              </div>
+            </div>
+
             {/* Main Visuals */}
             <div className="flex-1 overflow-x-auto">
               {/* Text String Always Visible */}
@@ -1195,13 +1439,24 @@ const App = () => {
                 {renderHighlightText(
                   text, 
                   step.i !== undefined ? [step.i] : [], 
-                  'bg-blue-200 border-blue-400'
+                  'bg-blue-200 border-blue-400',
+                  step.matches || []
+                )}
+                {step.matches && step.matches.length > 0 && (
+                  <div className="mt-2 text-xs text-gray-600">
+                    <span className="font-semibold">Matches found: </span>
+                    {step.matches.map((m, idx) => (
+                      <span key={idx} className="mr-2">
+                        <span className="font-mono">"{m.pattern}"</span> at [{m.start}-{m.end}]
+                      </span>
+                    ))}
+                  </div>
                 )}
               </div>
 
               {/* Algorithm Details Panel */}
               <div className="border-t pt-4">
-                <div className="grid grid-cols-1 lg:grid-cols-10 gap-6">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                   {/* Code Viewer - 4 columns */}
                   <div className="lg:col-span-4">
                     <h5 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">
@@ -1213,12 +1468,24 @@ const App = () => {
                       stepType={step.type}
                     />
                   </div>
-                  {/* Visualization - 6 columns */}
-                  <div className="lg:col-span-6">
+                  {/* Visualization - 5 columns */}
+                  <div className="lg:col-span-5">
                     <h5 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">
                       Visualization / 可视化
                     </h5>
                     {renderACViz()}
+                  </div>
+                  {/* Transition Table - 3 columns */}
+                  <div className="lg:col-span-3">
+                    <h5 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">
+                      Transitions / 转移表
+                    </h5>
+                    <TransitionTable 
+                      trie={step.trie}
+                      currentNode={step.node}
+                      transitionChar={step.transitionChar}
+                      stepType={step.type}
+                    />
                   </div>
                 </div>
               </div>
