@@ -154,21 +154,33 @@ const generateNaiveSteps = (text, pattern) => {
   const m = pattern.length;
   if (m === 0) return steps;
 
+  let totalComparisons = 0;
+  const matches = [];
+  const comparisonHistory = [];
+
   for (let i = 0; i <= n - m; i++) {
     steps.push({
       type: 'shift',
       i, j: 0,
       highlight: [],
+      comparisons: totalComparisons,
+      matches: [...matches],
       desc: { en: `Shift pattern to index ${i}.`, zh: `将模式串移动到索引 ${i}。` }
     });
 
     let match = true;
     for (let j = 0; j < m; j++) {
+      totalComparisons++;
+      comparisonHistory.push({ i, j, textChar: text[i + j], patternChar: pattern[j], match: text[i + j] === pattern[j] });
+      
       steps.push({
         type: 'compare',
         i, j,
         highlight: [i + j],
         match: text[i + j] === pattern[j],
+        comparisons: totalComparisons,
+        matches: [...matches],
+        comparisonHistory: [...comparisonHistory],
         desc: {
           en: `Compare T[${i + j}] ('${text[i + j]}') with P[${j}] ('${pattern[j]}').`,
           zh: `比较主串 T[${i + j}] ('${text[i + j]}') 和模式串 P[${j}] ('${pattern[j]}')。`
@@ -181,6 +193,9 @@ const generateNaiveSteps = (text, pattern) => {
           type: 'mismatch',
           i, j,
           highlight: [i + j],
+          comparisons: totalComparisons,
+          matches: [...matches],
+          comparisonHistory: [...comparisonHistory],
           desc: { en: "Mismatch found. Break loop.", zh: "发现不匹配。跳出循环。" }
         });
         break;
@@ -188,10 +203,14 @@ const generateNaiveSteps = (text, pattern) => {
     }
 
     if (match) {
+      matches.push({ start: i, end: i + m - 1 });
       steps.push({
         type: 'match',
         i, j: m - 1,
         highlight: Array.from({ length: m }, (_, k) => i + k),
+        comparisons: totalComparisons,
+        matches: [...matches],
+        comparisonHistory: [...comparisonHistory],
         desc: { en: `Pattern found at index ${i}!`, zh: `在索引 ${i} 处找到模式串！` }
       });
     }
@@ -227,20 +246,30 @@ const generateKMPSteps = (text, pattern) => {
   // Search
   let i = 0;
   let j = 0;
+  let totalComparisons = 0;
+  const matches = [];
+  const jumpHistory = [];
 
   steps.push({
     type: 'init',
     i, j,
     nextTable: lps,
+    comparisons: 0,
+    matches: [],
+    jumpHistory: [],
     desc: { en: "Initialize KMP. Calculate Next (LPS) table.", zh: "初始化 KMP。计算 Next (最长公共前缀后缀) 表。" }
   });
 
   while (i < n) {
+    totalComparisons++;
     steps.push({
       type: 'compare',
       i, j,
       nextTable: lps,
       match: text[i] === pattern[j],
+      comparisons: totalComparisons,
+      matches: [...matches],
+      jumpHistory: [...jumpHistory],
       desc: { 
         en: `Compare T[${i}] ('${text[i]}') with P[${j}] ('${pattern[j]}').`, 
         zh: `比较 T[${i}] ('${text[i]}') 和 P[${j}] ('${pattern[j]}')。` 
@@ -251,17 +280,26 @@ const generateKMPSteps = (text, pattern) => {
       i++;
       j++;
       if (j === m) {
+        matches.push({ start: i - j, end: i - 1 });
         steps.push({
           type: 'match',
           i: i - j, j: m - 1,
           nextTable: lps,
+          comparisons: totalComparisons,
+          matches: [...matches],
+          jumpHistory: [...jumpHistory],
           desc: { en: `Pattern found at index ${i - j}!`, zh: `在索引 ${i - j} 处找到模式串！` }
         });
+        let oldJ = j;
         j = lps[j - 1];
+        jumpHistory.push({ from: oldJ, to: j, reason: 'match' });
         steps.push({
           type: 'jump',
           i, j,
           nextTable: lps,
+          comparisons: totalComparisons,
+          matches: [...matches],
+          jumpHistory: [...jumpHistory],
           desc: { en: `Jump pattern index j to ${j} (from Next table).`, zh: `根据 Next 表将模式串索引 j 跳转到 ${j}。` }
         });
       }
@@ -269,10 +307,14 @@ const generateKMPSteps = (text, pattern) => {
       if (j !== 0) {
         let oldJ = j;
         j = lps[j - 1];
+        jumpHistory.push({ from: oldJ, to: j, reason: 'mismatch', position: i });
         steps.push({
           type: 'jump',
           i, j,
           nextTable: lps,
+          comparisons: totalComparisons,
+          matches: [...matches],
+          jumpHistory: [...jumpHistory],
           desc: { 
             en: `Mismatch at P[${oldJ}]. Jump j to ${j} (Next[${oldJ-1}]). i stays at ${i}.`, 
             zh: `P[${oldJ}] 处不匹配。j 跳转到 ${j} (Next[${oldJ-1}])。i 保持在 ${i}。` 
@@ -284,6 +326,9 @@ const generateKMPSteps = (text, pattern) => {
           type: 'shift',
           i, j,
           nextTable: lps,
+          comparisons: totalComparisons,
+          matches: [...matches],
+          jumpHistory: [...jumpHistory],
           desc: { en: `Mismatch at start. Increment i to ${i}.`, zh: `起始位置不匹配。将 i 增加到 ${i}。` }
         });
       }
@@ -313,10 +358,20 @@ const generateRKSteps = (text, pattern) => {
     t = (d * t + text.charCodeAt(i)) % q;
   }
 
+  const matches = [];
+  const hashHistory = [];
+  let hashCollisions = 0;
+
   steps.push({
     type: 'init',
     i: 0,
     hp: p, ht: t,
+    h: h,
+    d: d,
+    q: q,
+    matches: [],
+    hashHistory: [],
+    hashCollisions: 0,
     desc: { 
       en: `Calculate initial hashes. Hp(Pattern) = ${p}, Ht(Text window 0) = ${t}.`, 
       zh: `计算初始哈希值。Hp(模式串) = ${p}，Ht(文本窗口0) = ${t}。` 
@@ -324,10 +379,17 @@ const generateRKSteps = (text, pattern) => {
   });
 
   for (let i = 0; i <= n - m; i++) {
+    hashHistory.push({ i, hash: t });
     steps.push({
       type: 'compare_hash',
       i, hp: p, ht: t,
+      h: h,
+      d: d,
+      q: q,
       match: p === t,
+      matches: [...matches],
+      hashHistory: [...hashHistory],
+      hashCollisions: hashCollisions,
       desc: { 
         en: `Window at ${i}. Compare Hash: ${p} vs ${t}.`, 
         zh: `窗口在 ${i}。比较哈希值：${p} vs ${t}。` 
@@ -338,6 +400,12 @@ const generateRKSteps = (text, pattern) => {
       steps.push({
         type: 'check_chars',
         i, hp: p, ht: t,
+        h: h,
+        d: d,
+        q: q,
+        matches: [...matches],
+        hashHistory: [...hashHistory],
+        hashCollisions: hashCollisions,
         desc: { en: "Hashes match! Check characters one by one.", zh: "哈希值匹配！逐个检查字符。" }
       });
       
@@ -346,21 +414,37 @@ const generateRKSteps = (text, pattern) => {
         steps.push({
             type: 'verify',
             i, j, hp: p, ht: t,
+            h: h,
+            d: d,
+            q: q,
+            matches: [...matches],
+            hashHistory: [...hashHistory],
+            hashCollisions: hashCollisions,
             match: text[i+j] === pattern[j],
             desc: { en: `Checking T[${i+j}] === P[${j}]...`, zh: `检查 T[${i+j}] === P[${j}]...` }
         });
         if (text[i + j] !== pattern[j]) {
           match = false;
+          hashCollisions++;
           break;
         }
       }
 
       if (match) {
+        matches.push({ start: i, end: i + m - 1 });
         steps.push({
           type: 'match',
           i, hp: p, ht: t,
+          h: h,
+          d: d,
+          q: q,
+          matches: [...matches],
+          hashHistory: [...hashHistory],
+          hashCollisions: hashCollisions,
           desc: { en: `Pattern found at index ${i}.`, zh: `在索引 ${i} 处找到模式串。` }
         });
+      } else {
+        hashCollisions++;
       }
     }
 
@@ -375,6 +459,12 @@ const generateRKSteps = (text, pattern) => {
         prevHt: oldT,
         removed: text[i],
         added: text[i + m],
+        h: h,
+        d: d,
+        q: q,
+        matches: [...matches],
+        hashHistory: [...hashHistory],
+        hashCollisions: hashCollisions,
         desc: { 
           en: `Rolling Hash: Remove '${text[i]}', add '${text[i+m]}'.`, 
           zh: `滚动哈希：移除 '${text[i]}'，添加 '${text[i+m]}'。` 
@@ -527,7 +617,88 @@ const generateACSteps = (text, patternsInput) => {
   return steps;
 };
 
-// --- AC Algorithm Code (from textbook) ---
+// --- Algorithm Code Snippets ---
+
+// Naive Algorithm Code
+const NAIVE_CODE = [
+  { line: 1, code: "int naive_search(string text, string pattern) {", phase: "search" },
+  { line: 2, code: "    int n = text.length();", phase: "search" },
+  { line: 3, code: "    int m = pattern.length();", phase: "search" },
+  { line: 4, code: "", phase: "search" },
+  { line: 5, code: "    for (int i = 0; i <= n - m; i++) {", phase: "search" },
+  { line: 6, code: "        int j;", phase: "search" },
+  { line: 7, code: "        for (j = 0; j < m; j++) {", phase: "search" },
+  { line: 8, code: "            if (text[i + j] != pattern[j])", phase: "search" },
+  { line: 9, code: "                break;", phase: "search" },
+  { line: 10, code: "        }", phase: "search" },
+  { line: 11, code: "        if (j == m)", phase: "search" },
+  { line: 12, code: "            return i; // Pattern found", phase: "search" },
+  { line: 13, code: "    }", phase: "search" },
+  { line: 14, code: "    return -1; // Not found", phase: "search" },
+  { line: 15, code: "}", phase: "search" },
+];
+
+// KMP Algorithm Code
+const KMP_CODE = [
+  { line: 1, code: "int kmp_search(string text, string pattern) {", phase: "search" },
+  { line: 2, code: "    int n = text.length();", phase: "search" },
+  { line: 3, code: "    int m = pattern.length();", phase: "search" },
+  { line: 4, code: "    int lps[m];", phase: "search" },
+  { line: 5, code: "    compute_lps(pattern, lps);", phase: "search" },
+  { line: 6, code: "", phase: "search" },
+  { line: 7, code: "    int i = 0, j = 0;", phase: "search" },
+  { line: 8, code: "    while (i < n) {", phase: "search" },
+  { line: 9, code: "        if (pattern[j] == text[i]) {", phase: "search" },
+  { line: 10, code: "            i++; j++;", phase: "search" },
+  { line: 11, code: "        }", phase: "search" },
+  { line: 12, code: "        if (j == m) {", phase: "search" },
+  { line: 13, code: "            return i - j; // Found", phase: "search" },
+  { line: 14, code: "        } else if (i < n && pattern[j] != text[i]) {", phase: "search" },
+  { line: 15, code: "            if (j != 0)", phase: "search" },
+  { line: 16, code: "                j = lps[j - 1]; // Jump", phase: "search" },
+  { line: 17, code: "            else", phase: "search" },
+  { line: 18, code: "                i++;", phase: "search" },
+  { line: 19, code: "        }", phase: "search" },
+  { line: 20, code: "    }", phase: "search" },
+  { line: 21, code: "    return -1;", phase: "search" },
+  { line: 22, code: "}", phase: "search" },
+];
+
+// Rabin-Karp Algorithm Code
+const RK_CODE = [
+  { line: 1, code: "int rabin_karp(string text, string pattern) {", phase: "search" },
+  { line: 2, code: "    int d = 256, q = 101;", phase: "search" },
+  { line: 3, code: "    int m = pattern.length();", phase: "search" },
+  { line: 4, code: "    int n = text.length();", phase: "search" },
+  { line: 5, code: "    int h = 1, p = 0, t = 0;", phase: "search" },
+  { line: 6, code: "", phase: "search" },
+  { line: 7, code: "    // Calculate h = d^(m-1) % q", phase: "search" },
+  { line: 8, code: "    for (int i = 0; i < m - 1; i++)", phase: "search" },
+  { line: 9, code: "        h = (h * d) % q;", phase: "search" },
+  { line: 10, code: "", phase: "search" },
+  { line: 11, code: "    // Calculate initial hash values", phase: "search" },
+  { line: 12, code: "    for (int i = 0; i < m; i++) {", phase: "search" },
+  { line: 13, code: "        p = (d * p + pattern[i]) % q;", phase: "search" },
+  { line: 14, code: "        t = (d * t + text[i]) % q;", phase: "search" },
+  { line: 15, code: "    }", phase: "search" },
+  { line: 16, code: "", phase: "search" },
+  { line: 17, code: "    for (int i = 0; i <= n - m; i++) {", phase: "search" },
+  { line: 18, code: "        if (p == t) {", phase: "search" },
+  { line: 19, code: "            // Verify by comparing characters", phase: "search" },
+  { line: 20, code: "            if (text.substr(i, m) == pattern)", phase: "search" },
+  { line: 21, code: "                return i;", phase: "search" },
+  { line: 22, code: "        }", phase: "search" },
+  { line: 23, code: "        if (i < n - m) {", phase: "search" },
+  { line: 24, code: "            // Rolling hash", phase: "search" },
+  { line: 25, code: "            t = (d * (t - text[i] * h) + text[i+m]) % q;", phase: "search" },
+  { line: 26, code: "            if (t < 0) t += q;", phase: "search" },
+  { line: 27, code: "        }", phase: "search" },
+  { line: 28, code: "    }", phase: "search" },
+  { line: 29, code: "    return -1;", phase: "search" },
+  { line: 30, code: "}", phase: "search" },
+];
+
+// AC Algorithm Code (from textbook)
 const AC_CODE = [
   { line: 1, code: "int mult_search(const string& text) {", phase: "search" },
   { line: 2, code: "    int cnt = 0;", phase: "search" },
@@ -549,20 +720,42 @@ const AC_CODE = [
 ];
 
 // Map step types to code lines with context
-const getCodeLineForStep = (stepType, step) => {
-  // For 'input' step, highlight the for loop and the character being read
-  if (stepType === 'input') return 5;
+const getCodeLineForStep = (algo, stepType, step) => {
+  if (algo === 'naive') {
+    if (stepType === 'shift') return 5;
+    if (stepType === 'compare') return 8;
+    if (stepType === 'mismatch') return 9;
+    if (stepType === 'match') return 12;
+    return null;
+  }
   
-  // For 'goto' step, highlight the state transition line
-  if (stepType === 'goto') return 8;
+  if (algo === 'kmp') {
+    if (stepType === 'init') return 5;
+    if (stepType === 'compare') return 9;
+    if (stepType === 'match') return 13;
+    if (stepType === 'jump') return 16;
+    if (stepType === 'shift') return 18;
+    return null;
+  }
   
-  // For 'match' step, highlight the output check
-  if (stepType === 'match') return 10;
+  if (algo === 'rk') {
+    if (stepType === 'init') return 12;
+    if (stepType === 'compare_hash') return 18;
+    if (stepType === 'check_chars') return 19;
+    if (stepType === 'verify') return 20;
+    if (stepType === 'match') return 21;
+    if (stepType === 'roll') return 25;
+    return null;
+  }
   
-  // For 'fail' step, we show the transition check (though actual fail logic is in build_failure)
-  if (stepType === 'fail') return 7;
+  if (algo === 'ac') {
+    if (stepType === 'input') return 5;
+    if (stepType === 'goto') return 8;
+    if (stepType === 'match') return 10;
+    if (stepType === 'fail') return 7;
+    return null;
+  }
   
-  // For 'init', no specific line
   return null;
 };
 
@@ -1213,6 +1406,211 @@ const MatchCounterStats = ({ matches, matchHistory, patterns, showTitle = true }
   );
 };
 
+// --- Algorithm-Specific Visualization Components ---
+
+// Naive Algorithm Visualizations
+const NaiveMatchHistory = ({ matches, showTitle = true }) => {
+  if (!matches || matches.length === 0) {
+    return (
+      <div className="bg-white rounded-lg border border-gray-300 shadow-sm p-4 h-full flex items-center justify-center">
+        <p className="text-gray-400 text-sm">No matches found yet</p>
+      </div>
+    );
+  }
+  
+  return (
+    <div className="bg-white rounded-lg border border-gray-300 shadow-sm overflow-hidden flex flex-col h-full">
+      {showTitle && (
+        <div className="bg-gray-800 text-white px-4 py-2 font-semibold text-sm flex-shrink-0">
+          Match History / 匹配历史
+        </div>
+      )}
+      <div className="overflow-y-auto flex-1 min-h-0 p-3">
+        <div className="space-y-2">
+          {matches.map((match, idx) => (
+            <div key={idx} className="bg-green-50 border-l-4 border-green-500 p-2 rounded-r shadow-sm">
+              <div className="font-bold text-green-800">Match #{idx + 1}</div>
+              <div className="text-xs text-gray-600 mt-1">Position: [{match.start}-{match.end}]</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const NaiveStatistics = ({ comparisons, matches, textLength, patternLength, showTitle = true }) => {
+  const efficiency = comparisons > 0 ? ((textLength - patternLength + 1) * patternLength / comparisons * 100).toFixed(1) : 0;
+  
+  return (
+    <div className="bg-white rounded-lg border border-gray-300 shadow-sm overflow-hidden flex flex-col h-full">
+      {showTitle && (
+        <div className="bg-gray-800 text-white px-4 py-2 font-semibold text-sm flex-shrink-0">
+          Statistics / 统计信息
+        </div>
+      )}
+      <div className="overflow-y-auto flex-1 min-h-0 p-3 space-y-3">
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+          <div className="text-xs text-blue-600 mb-1">Total Comparisons</div>
+          <div className="text-2xl font-bold text-blue-800">{comparisons || 0}</div>
+        </div>
+        <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+          <div className="text-xs text-green-600 mb-1">Matches Found</div>
+          <div className="text-2xl font-bold text-green-800">{matches?.length || 0}</div>
+        </div>
+        <div className="text-xs text-gray-600 space-y-1">
+          <div>Time Complexity: O(n × m)</div>
+          <div>Space Complexity: O(1)</div>
+          <div>Worst Case: {(textLength - patternLength + 1) * patternLength} comparisons</div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// KMP Algorithm Visualizations
+const KMPJumpVisualization = ({ jumpHistory, nextTable, showTitle = true }) => {
+  if (!jumpHistory || jumpHistory.length === 0) {
+    return (
+      <div className="bg-white rounded-lg border border-gray-300 shadow-sm p-4 h-full flex items-center justify-center">
+        <p className="text-gray-400 text-sm">No jumps yet</p>
+      </div>
+    );
+  }
+  
+  const recentJumps = jumpHistory.slice(-10);
+  
+  return (
+    <div className="bg-white rounded-lg border border-gray-300 shadow-sm overflow-hidden flex flex-col h-full">
+      {showTitle && (
+        <div className="bg-gray-800 text-white px-4 py-2 font-semibold text-sm flex-shrink-0">
+          Jump History / 跳转历史
+        </div>
+      )}
+      <div className="overflow-y-auto flex-1 min-h-0 p-3">
+        <div className="space-y-2">
+          {recentJumps.map((jump, idx) => (
+            <div key={idx} className="bg-purple-50 border-l-4 border-purple-500 p-2 rounded-r">
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-purple-800">j: {jump.from}</span>
+                <span className="text-gray-400">→</span>
+                <span className="font-bold text-purple-800">j: {jump.to}</span>
+                {jump.reason === 'mismatch' && (
+                  <span className="ml-auto text-xs text-gray-500">at position {jump.position}</span>
+                )}
+              </div>
+              {nextTable && jump.from > 0 && (
+                <div className="text-xs text-gray-600 mt-1">
+                  Using Next[{jump.from - 1}] = {nextTable[jump.from - 1]}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const KMPStatistics = ({ comparisons, matches, textLength, patternLength, showTitle = true }) => {
+  return (
+    <div className="bg-white rounded-lg border border-gray-300 shadow-sm overflow-hidden flex flex-col h-full">
+      {showTitle && (
+        <div className="bg-gray-800 text-white px-4 py-2 font-semibold text-sm flex-shrink-0">
+          Statistics / 统计信息
+        </div>
+      )}
+      <div className="overflow-y-auto flex-1 min-h-0 p-3 space-y-3">
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+          <div className="text-xs text-blue-600 mb-1">Total Comparisons</div>
+          <div className="text-2xl font-bold text-blue-800">{comparisons || 0}</div>
+        </div>
+        <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+          <div className="text-xs text-green-600 mb-1">Matches Found</div>
+          <div className="text-2xl font-bold text-green-800">{matches?.length || 0}</div>
+        </div>
+        <div className="text-xs text-gray-600 space-y-1">
+          <div>Time Complexity: O(n + m)</div>
+          <div>Space Complexity: O(m)</div>
+          <div>Efficiency: Better than Naive!</div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Rabin-Karp Algorithm Visualizations
+const RKHashDetails = ({ step, showTitle = true }) => {
+  if (!step || step.hp === undefined) return null;
+  
+  return (
+    <div className="bg-white rounded-lg border border-gray-300 shadow-sm overflow-hidden flex flex-col h-full">
+      {showTitle && (
+        <div className="bg-gray-800 text-white px-4 py-2 font-semibold text-sm flex-shrink-0">
+          Hash Details / 哈希详情
+        </div>
+      )}
+      <div className="overflow-y-auto flex-1 min-h-0 p-3 space-y-3">
+        <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3">
+          <div className="text-xs font-semibold text-indigo-800 mb-2">Parameters</div>
+          <div className="text-xs text-gray-700 space-y-1">
+            <div>Base (d): {step.d || 256}</div>
+            <div>Modulus (q): {step.q || 101}</div>
+            <div>Multiplier (h): {step.h || 1}</div>
+          </div>
+        </div>
+        {step.type === 'roll' && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+            <div className="text-xs font-semibold text-yellow-800 mb-2">Rolling Hash Formula</div>
+            <div className="text-xs text-gray-700 font-mono">
+              H<sub>t</sub> = (d × (H<sub>t</sub> - T[i] × h) + T[i+m]) mod q
+            </div>
+            <div className="text-xs text-gray-600 mt-2">
+              Remove: '{step.removed}' | Add: '{step.added}'
+            </div>
+          </div>
+        )}
+        {step.hashCollisions !== undefined && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+            <div className="text-xs font-semibold text-red-800 mb-1">Hash Collisions</div>
+            <div className="text-xl font-bold text-red-800">{step.hashCollisions}</div>
+            <div className="text-xs text-gray-600 mt-1">False positives requiring verification</div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+const RKStatistics = ({ matches, hashCollisions, hashHistory, showTitle = true }) => {
+  return (
+    <div className="bg-white rounded-lg border border-gray-300 shadow-sm overflow-hidden flex flex-col h-full">
+      {showTitle && (
+        <div className="bg-gray-800 text-white px-4 py-2 font-semibold text-sm flex-shrink-0">
+          Statistics / 统计信息
+        </div>
+      )}
+      <div className="overflow-y-auto flex-1 min-h-0 p-3 space-y-3">
+        <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+          <div className="text-xs text-green-600 mb-1">Matches Found</div>
+          <div className="text-2xl font-bold text-green-800">{matches?.length || 0}</div>
+        </div>
+        {hashCollisions !== undefined && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+            <div className="text-xs text-red-600 mb-1">Hash Collisions</div>
+            <div className="text-2xl font-bold text-red-800">{hashCollisions}</div>
+          </div>
+        )}
+        <div className="text-xs text-gray-600 space-y-1">
+          <div>Time Complexity: O(n + m) average</div>
+          <div>Space Complexity: O(1)</div>
+          <div>Windows processed: {hashHistory?.length || 0}</div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // --- Components ---
 
 const ControlButton = ({ onClick, icon: Icon, disabled }) => (
@@ -1781,113 +2179,370 @@ const App = () => {
           </Card>
         )}
 
-        {/* Input & Controls - Side by side for other algorithms */}
+        {/* Configuration Panel - Above Visualization for other algorithms */}
         {algo !== 'ac' && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <Card title="Configuration / 配置" className="lg:col-span-1">
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Text (Main String) <span className="text-gray-400 font-normal">/ 文本(主串)</span>
-                  </label>
-                  <input 
-                    type="text" 
-                    value={text} 
-                    onChange={(e) => setText(e.target.value)}
-                    className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none transition-shadow duration-200"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Pattern <span className="text-gray-400 font-normal ml-1">/ 模式串</span>
-                  </label>
-                  <input 
-                    type="text" 
-                    value={pattern} 
-                    onChange={(e) => setPattern(e.target.value)}
-                    className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none transition-shadow duration-200"
-                  />
-                </div>
-                
-                <div className="pt-4 border-t border-gray-100">
-                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Speed / 速度</label>
-                  <input 
-                    type="range" 
-                    min="100" max="2000" step="100" 
-                    value={2100 - speed} 
-                    onChange={(e) => setSpeed(2100 - parseInt(e.target.value))}
-                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
-                  />
-                  <div className="flex justify-between text-xs text-gray-400 mt-1">
-                    <span>Slow / 慢</span>
-                    <span>Fast / 快</span>
-                  </div>
+          <Card title="Configuration / 配置" className="mb-2">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Text (Main String) <span className="text-gray-400 font-normal">/ 文本(主串)</span>
+                </label>
+                <input 
+                  type="text" 
+                  value={text} 
+                  onChange={(e) => setText(e.target.value)}
+                  className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none transition-shadow duration-200"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Pattern <span className="text-gray-400 font-normal ml-1">/ 模式串</span>
+                </label>
+                <input 
+                  type="text" 
+                  value={pattern} 
+                  onChange={(e) => setPattern(e.target.value)}
+                  className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none transition-shadow duration-200"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Speed / 速度</label>
+                <input 
+                  type="range" 
+                  min="100" max="2000" step="100" 
+                  value={2100 - speed} 
+                  onChange={(e) => setSpeed(2100 - parseInt(e.target.value))}
+                  className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                />
+                <div className="flex justify-between text-xs text-gray-400 mt-1">
+                  <span>Slow / 慢</span>
+                  <span>Fast / 快</span>
                 </div>
               </div>
-            </Card>
+            </div>
+          </Card>
+        )}
 
-            <Card title="Visualization / 演示" className="lg:col-span-2 min-h-[500px] flex flex-col">
-              {/* Control Bar */}
-              <div className="flex justify-center items-center gap-4 mb-6 p-2 bg-gray-50 rounded-full w-fit mx-auto border border-gray-200">
-                <ControlButton icon={RotateCcw} onClick={() => { setIsPlaying(false); setCurrentStep(0); }} />
-                <ControlButton icon={SkipBack} onClick={() => { setIsPlaying(false); setCurrentStep(Math.max(0, currentStep - 1)); }} disabled={currentStep === 0} />
-                <ControlButton icon={isPlaying ? Pause : Play} onClick={() => setIsPlaying(!isPlaying)} />
-                <ControlButton icon={SkipForward} onClick={() => { setIsPlaying(false); setCurrentStep(Math.min(steps.length - 1, currentStep + 1)); }} disabled={currentStep === steps.length - 1} />
+        {/* Visualization Panel - Full width for other algorithms */}
+        {algo !== 'ac' && (
+          <Card 
+            title={
+              <div className="flex items-center justify-between w-full">
+                <span>Visualization / 演示</span>
+                <div className="flex items-center gap-3">
+                  {/* Control Bar - Compact inline */}
+                  <div className="flex items-center gap-2 p-1 bg-gray-100 rounded-full border border-gray-300">
+                    <ControlButton icon={RotateCcw} onClick={() => { setIsPlaying(false); setCurrentStep(0); }} />
+                    <ControlButton icon={SkipBack} onClick={() => { setIsPlaying(false); setCurrentStep(Math.max(0, currentStep - 1)); }} disabled={currentStep === 0} />
+                    <ControlButton icon={isPlaying ? Pause : Play} onClick={() => setIsPlaying(!isPlaying)} />
+                    <ControlButton icon={SkipForward} onClick={() => { setIsPlaying(false); setCurrentStep(Math.min(steps.length - 1, currentStep + 1)); }} disabled={currentStep === steps.length - 1} />
+                  </div>
+                  <span className="text-xs text-gray-300 font-mono">Step {currentStep + 1} / {steps.length}</span>
+                </div>
               </div>
+            } 
+            className="min-h-[500px] flex flex-col" 
+            style={{ height: 'calc(100vh - 240px)', maxHeight: 'calc(100vh - 240px)' }}
+          >
 
               {/* Explanation Box */}
-              <div className="mb-6 bg-blue-50 border-l-4 border-blue-500 p-4 rounded-r-lg shadow-sm min-h-[100px] transition-all duration-300">
-                <div className="flex items-start">
-                  <Info className="text-blue-500 mr-3 mt-1 flex-shrink-0" size={20} />
-                  <div className="w-full">
-                    <p className="text-blue-900 font-medium text-lg leading-relaxed">
+              <div className="mb-2 bg-blue-50 border-l-4 border-blue-500 p-2 rounded-r-lg shadow-sm transition-all duration-300 flex-shrink-0">
+                <div className="flex items-start gap-1.5">
+                  <Info className="text-blue-500 mt-0.5 flex-shrink-0" size={16} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-blue-900 font-medium text-xs leading-tight">
                       {step.desc?.en || "Ready to start..."}
                     </p>
-                    <p className="text-blue-700/80 mt-2 border-t border-blue-200 pt-2 text-base">
+                    <p className="text-blue-700/80 mt-0.5 text-xs leading-tight">
                       {step.desc?.zh || "准备开始..."}
                     </p>
                   </div>
                 </div>
               </div>
 
-              {/* Main Visuals */}
-              <div className="flex-1 overflow-x-auto">
-                {/* Text String Always Visible */}
-                <div className="mb-6">
-                  <h5 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
-                    Text Stream / 文本流
-                  </h5>
-                  {renderHighlightText(
-                    text, 
-                    step.i !== undefined && algo !== 'rk' ? [step.i] : [], 
-                    'bg-blue-200 border-blue-400'
+              {/* Main Visuals - Scrollable */}
+              <div className="flex-1 overflow-y-auto overflow-x-hidden min-h-0">
+                {/* Visualization Section - Text Stream and Pattern Window together */}
+                <div className="mb-3 flex-shrink-0">
+                  <div className="mb-2 flex-shrink-0">
+                    <VizTitle 
+                      title="Visualization / 可视化"
+                      tooltip={{
+                        title: "Algorithm Visualization",
+                        description: algo === 'naive'
+                          ? "Shows the pattern window sliding over the text. Each position is checked character by character."
+                          : algo === 'kmp'
+                          ? "Shows the KMP algorithm with the Next (LPS) table. Pattern index jumps are visualized when mismatches occur."
+                          : "Shows hash values for pattern and text window. Rolling hash updates are animated.",
+                        zh: algo === 'naive'
+                          ? "显示模式窗口在文本上滑动。每个位置都逐字符检查。"
+                          : algo === 'kmp'
+                          ? "显示带有 Next (LPS) 表的 KMP 算法。当出现不匹配时可视化模式索引跳转。"
+                          : "显示模式和文本窗口的哈希值。滚动哈希更新是动画的。"
+                      }}
+                    />
+                  </div>
+                  
+                  {/* Text String */}
+                  <div className="mb-3">
+                    <div className="mb-1">
+                      <VizTitle 
+                        title="Text Stream / 文本流"
+                        tooltip={{
+                          title: "Text Stream",
+                          description: "The input text being processed. The highlighted character shows the current position being examined.",
+                          zh: "正在处理的输入文本。高亮字符显示当前正在检查的位置。"
+                        }}
+                      />
+                    </div>
+                    {renderHighlightText(
+                      text, 
+                      step.i !== undefined && algo !== 'rk' ? [step.i] : [], 
+                      'bg-blue-200 border-blue-400',
+                      step.matches || []
+                    )}
+                  </div>
+
+                  {/* Pattern Window - Only for Naive and KMP */}
+                  {algo !== 'rk' && (
+                    <div className="mb-3">
+                      <div className="mb-1">
+                        <VizTitle 
+                          title="Pattern Window / 模式窗口"
+                          tooltip={{
+                            title: "Pattern Window",
+                            description: "Shows the pattern aligned with the current text position. The pattern slides over the text as the algorithm progresses.",
+                            zh: "显示与当前文本位置对齐的模式。模式在算法进行时在文本上滑动。"
+                          }}
+                        />
+                      </div>
+                      <div className="relative h-20">
+                        <div style={{ transform: `translateX(${(step.i || 0) * 36}px)` }} className="transition-transform duration-500 cubic-bezier(0.4, 0, 0.2, 1) absolute left-0 top-0">
+                          {renderHighlightText(pattern, step.j !== undefined ? [step.j] : [], 'bg-orange-200 border-orange-400')}
+                        </div>
+                      </div>
+                    </div>
                   )}
                 </div>
 
-                {/* Algorithm Specifics */}
-                <div className="mb-6 relative h-20">
-                  <h5 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
-                    Pattern Window / 模式窗口
-                  </h5>
-                  {/* Animated Window Slider */}
-                  <div style={{ transform: `translateX(${(step.i || 0) * 36}px)` }} className="transition-transform duration-500 cubic-bezier(0.4, 0, 0.2, 1) absolute left-0 top-6">
-                    {renderHighlightText(pattern, step.j !== undefined ? [step.j] : [], 'bg-orange-200 border-orange-400')}
-                  </div>
-                </div>
-
                 {/* Algorithm Details Panel */}
-                <div className="border-t pt-4">
-                  {algo === 'rk' && renderRKViz()}
-                  {algo === 'kmp' && renderKMPViz()}
-                </div>
-              </div>
+                <div className="border-t pt-3">
+                  {algo === 'naive' ? (
+                    /* Naive Algorithm Layout: Code + Match History + Statistics in one row */
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 mb-3">
+                      {/* Code Viewer */}
+                      <div className="lg:col-span-4 flex flex-col min-h-0">
+                        <div className="mb-1 flex-shrink-0">
+                          <VizTitle 
+                            title="Code / 代码"
+                            tooltip={{
+                              title: "Code Viewer",
+                              description: "Shows the executing code for the Naive string matching algorithm. The highlighted line indicates the current execution point.",
+                              zh: "显示朴素字符串匹配算法的执行代码。高亮行表示当前执行位置。"
+                            }}
+                          />
+                        </div>
+                        <div className="flex-1 min-h-0 overflow-hidden">
+                          <CodeViewer 
+                            code={NAIVE_CODE}
+                            highlightedLine={getCodeLineForStep('naive', step.type, step)}
+                            stepType={step.type}
+                            showTitle={false}
+                          />
+                        </div>
+                      </div>
 
-              {/* Step Counter */}
-              <div className="mt-auto pt-4 text-right text-xs text-gray-400">
-                Step {currentStep + 1} / {steps.length}
+                      {/* Match History */}
+                      <div className="lg:col-span-4 flex flex-col min-h-0">
+                        <div className="mb-1 flex-shrink-0">
+                          <VizTitle 
+                            title="Match History / 匹配历史"
+                            tooltip={{
+                              title: "Match History Timeline",
+                              description: "Chronological list of all patterns found during execution. Shows pattern name, position in text, step number, and state where match occurred.",
+                              zh: "执行过程中找到的所有模式的按时间顺序列表。显示模式名称、文本中的位置、步骤号和匹配发生的状态。"
+                            }}
+                          />
+                        </div>
+                        <div className="flex-1 min-h-0">
+                          <NaiveMatchHistory matches={step.matches || []} showTitle={false} />
+                        </div>
+                      </div>
+
+                      {/* Statistics */}
+                      <div className="lg:col-span-4 flex flex-col min-h-0">
+                        <div className="mb-1 flex-shrink-0">
+                          <VizTitle 
+                            title="Statistics / 统计信息"
+                            tooltip={{
+                              title: "Match Counter & Statistics",
+                              description: "Shows total matches found, matches per pattern, and processing statistics like first/last match positions and unique pattern count.",
+                              zh: "显示找到的总匹配数、每个模式的匹配数以及处理统计信息，如第一个/最后一个匹配位置和唯一模式计数。"
+                            }}
+                          />
+                        </div>
+                        <div className="flex-1 min-h-0">
+                          <NaiveStatistics 
+                            comparisons={step.comparisons || 0}
+                            matches={step.matches || []}
+                            textLength={text.length}
+                            patternLength={pattern.length}
+                            showTitle={false}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ) : algo === 'kmp' ? (
+                    /* KMP Algorithm Layout: Code + (Next Table + Jump History) + Statistics = 3 cols */
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 mb-3">
+                      {/* Code Viewer */}
+                      <div className="lg:col-span-4 flex flex-col min-h-0">
+                        <div className="mb-1 flex-shrink-0">
+                          <VizTitle 
+                            title="Code / 代码"
+                            tooltip={{
+                              title: "Code Viewer",
+                              description: "Shows the executing code for the KMP algorithm. The highlighted line indicates the current execution point.",
+                              zh: "显示 KMP 算法的执行代码。高亮行表示当前执行位置。"
+                            }}
+                          />
+                        </div>
+                        <div className="flex-1 min-h-0 overflow-hidden">
+                          <CodeViewer 
+                            code={KMP_CODE}
+                            highlightedLine={getCodeLineForStep('kmp', step.type, step)}
+                            stepType={step.type}
+                            showTitle={false}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Next Table + Jump History Combined */}
+                      <div className="lg:col-span-4 flex flex-col min-h-0">
+                        <div className="mb-1 flex-shrink-0">
+                          <VizTitle 
+                            title="Next Table & Jumps / Next表与跳转"
+                            tooltip={{
+                              title: "Next Table & Jump History",
+                              description: "Shows the Next (LPS) table and pattern index jumps. Visualizes how the algorithm skips unnecessary comparisons.",
+                              zh: "显示 Next (LPS) 表和模式索引跳转。可视化算法如何跳过不必要的比较。"
+                            }}
+                          />
+                        </div>
+                        <div className="flex-1 min-h-0 overflow-auto space-y-3">
+                          {/* Next Table */}
+                          <div className="flex-shrink-0">
+                            {renderKMPViz()}
+                          </div>
+                          {/* Jump History */}
+                          <div className="flex-1 min-h-0">
+                            <KMPJumpVisualization 
+                              jumpHistory={step.jumpHistory || []}
+                              nextTable={step.nextTable}
+                              showTitle={false}
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Statistics */}
+                      <div className="lg:col-span-4 flex flex-col min-h-0">
+                        <div className="mb-1 flex-shrink-0">
+                          <VizTitle 
+                            title="Statistics / 统计信息"
+                            tooltip={{
+                              title: "Match Counter & Statistics",
+                              description: "Shows total matches found, matches per pattern, and processing statistics like first/last match positions and unique pattern count.",
+                              zh: "显示找到的总匹配数、每个模式的匹配数以及处理统计信息，如第一个/最后一个匹配位置和唯一模式计数。"
+                            }}
+                          />
+                        </div>
+                        <div className="flex-1 min-h-0">
+                          <KMPStatistics 
+                            comparisons={step.comparisons || 0}
+                            matches={step.matches || []}
+                            textLength={text.length}
+                            patternLength={pattern.length}
+                            showTitle={false}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    /* Rabin-Karp Algorithm Layout: Code + Hash Visualization + (Hash Details + Statistics) = 3 cols */
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 mb-3">
+                      {/* Code Viewer */}
+                      <div className="lg:col-span-4 flex flex-col min-h-0">
+                        <div className="mb-1 flex-shrink-0">
+                          <VizTitle 
+                            title="Code / 代码"
+                            tooltip={{
+                              title: "Code Viewer",
+                              description: "Shows the executing code for the Rabin-Karp algorithm. The highlighted line indicates the current execution point.",
+                              zh: "显示 Rabin-Karp 算法的执行代码。高亮行表示当前执行位置。"
+                            }}
+                          />
+                        </div>
+                        <div className="flex-1 min-h-0 overflow-hidden">
+                          <CodeViewer 
+                            code={RK_CODE}
+                            highlightedLine={getCodeLineForStep('rk', step.type, step)}
+                            stepType={step.type}
+                            showTitle={false}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Hash Visualization */}
+                      <div className="lg:col-span-4 flex flex-col min-h-0">
+                        <div className="mb-1 flex-shrink-0">
+                          <VizTitle 
+                            title="Hash Values / 哈希值"
+                            tooltip={{
+                              title: "Hash Visualization",
+                              description: "Shows pattern hash (Hp) and window hash (Ht) values with rolling hash animations.",
+                              zh: "显示模式哈希 (Hp) 和窗口哈希 (Ht) 值，带有滚动哈希动画。"
+                            }}
+                          />
+                        </div>
+                        <div className="flex-1 min-h-0 overflow-auto">
+                          {renderRKViz()}
+                        </div>
+                      </div>
+
+                      {/* Hash Details + Statistics Combined */}
+                      <div className="lg:col-span-4 flex flex-col min-h-0">
+                        <div className="mb-1 flex-shrink-0">
+                          <VizTitle 
+                            title="Details & Statistics / 详情与统计"
+                            tooltip={{
+                              title: "Hash Details & Statistics",
+                              description: "Shows hash parameters, rolling hash formula, collision information, and match statistics.",
+                              zh: "显示哈希参数、滚动哈希公式、冲突信息和匹配统计。"
+                            }}
+                          />
+                        </div>
+                        <div className="flex-1 min-h-0 overflow-auto space-y-3">
+                          {/* Hash Details */}
+                          <div className="flex-1 min-h-0">
+                            <RKHashDetails step={step} showTitle={false} />
+                          </div>
+                          {/* Statistics */}
+                          <div className="flex-1 min-h-0">
+                            <RKStatistics 
+                              matches={step.matches || []}
+                              hashCollisions={step.hashCollisions}
+                              hashHistory={step.hashHistory}
+                              showTitle={false}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             </Card>
-          </div>
         )}
 
         {/* Visualization Panel - Full width for AC algorithm */}
@@ -1977,7 +2632,7 @@ const App = () => {
                     <div className="flex-1 min-h-0 overflow-hidden">
                       <CodeViewer 
                         code={AC_CODE}
-                        highlightedLine={getCodeLineForStep(step.type, step)}
+                        highlightedLine={getCodeLineForStep('ac', step.type, step)}
                         stepType={step.type}
                       />
                     </div>
