@@ -1,19 +1,31 @@
-# Algorithm 3D Visualization
+# Algorithm Visualization
 
-A React + Vite application for visualizing string searching and pattern matching algorithms in 3D using Three.js.
+A React + Vite application for visualizing string searching and pattern matching algorithms with interactive step-by-step demonstrations.
 
 ## Features
 
-- **Naive String Matching**: Basic pattern matching algorithm visualization
-- **KMP Algorithm**: Knuth-Morris-Pratt algorithm with failure function visualization
-- **Rabin-Karp Algorithm**: Rolling hash-based pattern matching
-- **Aho-Corasick Algorithm**: Multi-pattern matching with trie visualization
+- **Naive String Matching**: Basic pattern matching algorithm with character-by-character comparison visualization
+- **KMP Algorithm**: Knuth-Morris-Pratt algorithm with Next (LPS) table visualization and failure function demonstration
+- **Rabin-Karp Algorithm**: Rolling hash-based pattern matching with hash value visualization
+- **Aho-Corasick Algorithm**: Multi-pattern matching with interactive trie automaton visualization and side-by-side code viewer
+
+### Key Features
+
+- **Interactive Step-by-Step Execution**: Play, pause, step forward/backward through algorithm execution
+- **Real-time Code Highlighting**: For AC algorithm, see the executing code line highlighted alongside the visualization
+- **Visual Text Stream**: Character-by-character visualization with index indicators
+- **Dynamic Visualizations**:
+  - Pattern window sliding for Naive and KMP algorithms
+  - Hash value displays for Rabin-Karp
+  - Interactive trie graph with tooltips for Aho-Corasick
+- **Bilingual Interface**: English and Chinese descriptions for all steps
+- **Adjustable Speed**: Control animation speed with a slider
 
 ## Tech Stack
 
 - React 18
 - Vite
-- Three.js (loaded via CDN)
+- SVG for graph visualizations
 - Tailwind CSS
 - Lucide React Icons
 
@@ -27,11 +39,13 @@ A React + Vite application for visualizing string searching and pattern matching
 ### Installation
 
 1. Install dependencies:
+
 ```bash
 npm install
 ```
 
 2. Start the development server:
+
 ```bash
 npm run dev
 ```
@@ -68,13 +82,24 @@ npm run preview
 
 ## Usage
 
-1. Select an algorithm from the header (NAIVE, KMP, RK, or AC)
-2. Enter your text and pattern(s) in the configuration panel
-3. Use the play/pause controls to step through the algorithm visualization
-4. Adjust the speed slider to control animation speed
-5. Move your mouse to rotate the 3D camera view
+1. **Select an Algorithm**: Choose from NAIVE, KMP, RK (Rabin-Karp), or AC (Aho-Corasick) in the header
+2. **Configure Input**:
+   - Enter your text string in the "Text (Main String)" field
+   - Enter pattern(s):
+     - For Naive, KMP, and RK: Enter a single pattern
+     - For AC: Enter comma-separated patterns (e.g., "arrows, row, sun, under")
+3. **Control Playback**:
+   - Use the play/pause button to start/stop automatic execution
+   - Use step forward/backward buttons to navigate manually
+   - Use reset button to return to the beginning
+4. **Adjust Speed**: Use the speed slider to control how fast the algorithm steps execute
+5. **View Visualizations**:
+   - Watch the text stream highlight as characters are processed
+   - Observe pattern window movements (Naive/KMP)
+   - See hash values update (Rabin-Karp)
+   - Explore the trie automaton graph with tooltips (Aho-Corasick)
+   - For AC algorithm, view the executing code line highlighted in the code viewer
 
 ## License
 
 MIT
-
