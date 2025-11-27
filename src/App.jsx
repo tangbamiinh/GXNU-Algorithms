@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Play, Pause, SkipForward, SkipBack, RotateCcw, Info, Hash, CornerDownRight } from 'lucide-react';
+import { Play, Pause, SkipForward, SkipBack, RotateCcw, Info, Hash, CornerDownRight, HelpCircle } from 'lucide-react';
 
 // --- Constants & Styles ---
 const COLORS = {
@@ -14,13 +14,13 @@ const COLORS = {
 };
 
 const Card = ({ children, title, className = "" }) => (
-  <div className={`bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200 ${className}`}>
+  <div className={`bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200 flex flex-col ${className}`}>
     {title && (
-      <div className="bg-blue-900 text-white px-4 py-3 font-semibold border-b border-blue-800">
+      <div className="bg-blue-900 text-white px-3 py-2 font-semibold border-b border-blue-800 flex-shrink-0 text-sm">
         {title}
       </div>
     )}
-    <div className="p-4">{children}</div>
+    <div className="p-3 flex-1 flex flex-col min-h-0">{children}</div>
   </div>
 );
 
@@ -38,6 +38,56 @@ const Badge = ({ children, color = "blue" }) => {
     </span>
   );
 };
+
+// Tooltip Component
+const Tooltip = ({ children, content, position = "top" }) => {
+  const [isVisible, setIsVisible] = useState(false);
+  const tooltipRef = useRef(null);
+
+  const positions = {
+    top: "bottom-full left-1/2 transform -translate-x-1/2 mb-2",
+    bottom: "top-full left-1/2 transform -translate-x-1/2 mt-2",
+    left: "right-full top-1/2 transform -translate-y-1/2 mr-2",
+    right: "left-full top-1/2 transform -translate-y-1/2 ml-2",
+  };
+
+  return (
+    <div 
+      className="relative inline-block"
+      onMouseEnter={() => setIsVisible(true)}
+      onMouseLeave={() => setIsVisible(false)}
+    >
+      {children}
+      {isVisible && (
+        <div
+          ref={tooltipRef}
+          className={`absolute z-50 ${positions[position]} px-3 py-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg whitespace-normal w-64 pointer-events-none`}
+        >
+          <div className="font-semibold mb-1">{content.title}</div>
+          <div className="text-gray-300">{content.description}</div>
+          {content.zh && (
+            <div className="text-gray-400 mt-1 text-xs border-t border-gray-700 pt-1">{content.zh}</div>
+          )}
+          <div className={`absolute ${position === 'top' ? 'top-full' : 'bottom-full'} left-1/2 transform -translate-x-1/2 -mt-1`}>
+            <div className={`w-2 h-2 bg-gray-900 transform rotate-45 ${position === 'top' ? '' : 'rotate-180'}`}></div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Visualization Title with Tooltip Component
+const VizTitle = ({ title, tooltip }) => (
+  <div className="flex items-center gap-2">
+    <span className="text-xs font-bold text-gray-700 uppercase tracking-widest">{title}</span>
+    {tooltip && (
+      <Tooltip content={tooltip}>
+        <HelpCircle size={14} className="text-gray-600 hover:text-gray-800 cursor-help" />
+      </Tooltip>
+    )}
+  </div>
+);
 
 // --- Helper: Trie Layout Calculation ---
 const calculateTrieLayout = (trie) => {
@@ -381,6 +431,8 @@ const generateACSteps = (text, patternsInput) => {
 
   let u = 0;
   const allMatches = []; // Track all matches found so far
+  const stateHistory = [0]; // Track state transition history
+  const matchHistory = []; // Track chronological match history
   
   steps.push({
     type: 'init',
@@ -388,6 +440,8 @@ const generateACSteps = (text, patternsInput) => {
     node: 0,
     i: -1,
     matches: [],
+    stateHistory: [0],
+    matchHistory: [],
     desc: { en: "AC Automaton Built. Ready to search.", zh: "AC 自动机已构建。准备搜索。" }
   });
   
@@ -398,7 +452,9 @@ const generateACSteps = (text, patternsInput) => {
         type: 'input',
         trie, layout, node: u, i,
         char,
-        matches: [...allMatches], // Include matches found so far
+        matches: [...allMatches],
+        stateHistory: [...stateHistory],
+        matchHistory: [...matchHistory],
         desc: { en: `Read character '${char}'. Current State: ${u}.`, zh: `读取字符 '${char}'。当前状态：${u}。` }
     });
 
@@ -414,12 +470,15 @@ const generateACSteps = (text, patternsInput) => {
     while (u > 0 && !trie[u].next[char]) {
       let prev = u;
       u = trie[u].fail;
+      stateHistory.push(u);
       steps.push({
         type: 'fail',
         trie, layout, node: u, i,
         prevNode: prev,
-        failPath: failPath, // Include the full path
+        failPath: failPath,
         matches: [...allMatches],
+        stateHistory: [...stateHistory],
+        matchHistory: [...matchHistory],
         desc: { en: `No transition for '${char}'. Follow Fail link ${prev} -> ${u}.`, zh: `没有 '${char}' 的转移。跟随失败链接 ${prev} -> ${u}。` }
       });
     }
@@ -427,12 +486,15 @@ const generateACSteps = (text, patternsInput) => {
     if (trie[u].next[char]) {
       let prev = u;
       u = trie[u].next[char];
+      stateHistory.push(u);
       steps.push({
         type: 'goto',
         trie, layout, node: u, i,
         prevNode: prev,
         transitionChar: char,
         matches: [...allMatches],
+        stateHistory: [...stateHistory],
+        matchHistory: [...matchHistory],
         desc: { en: `Transition ${prev} --${char}--> ${u}.`, zh: `状态转移 ${prev} --${char}--> ${u}。` }
       });
     }
@@ -443,16 +505,20 @@ const generateACSteps = (text, patternsInput) => {
       trie[u].output.forEach(pattern => {
         const endPos = i;
         const startPos = endPos - pattern.length + 1;
-        newMatches.push({ pattern, start: startPos, end: endPos });
-        allMatches.push({ pattern, start: startPos, end: endPos });
+        const matchEntry = { pattern, start: startPos, end: endPos, stepIndex: steps.length, charIndex: i, state: u };
+        newMatches.push(matchEntry);
+        allMatches.push(matchEntry);
+        matchHistory.push(matchEntry);
       });
       
       steps.push({
         type: 'match',
         trie, layout, node: u, i,
         found: trie[u].output,
-        newMatches: newMatches, // New matches found in this step
-        matches: [...allMatches], // All matches found so far
+        newMatches: newMatches,
+        matches: [...allMatches],
+        stateHistory: [...stateHistory],
+        matchHistory: [...matchHistory],
         desc: { en: `Output at state ${u}: ${trie[u].output.join(', ')}.`, zh: `状态 ${u} 输出：${trie[u].output.join(', ')}。` }
       });
     }
@@ -501,7 +567,7 @@ const getCodeLineForStep = (stepType, step) => {
 };
 
 // Code Viewer Component
-const CodeViewer = ({ code, highlightedLine, stepType }) => {
+const CodeViewer = ({ code, highlightedLine, stepType, showTitle = true }) => {
   const codeRef = useRef(null);
   const highlightedRef = useRef(null);
 
@@ -590,7 +656,7 @@ const CodeViewer = ({ code, highlightedLine, stepType }) => {
 
   return (
     <div 
-      className="bg-gray-900 rounded-lg overflow-hidden border border-gray-700 shadow-xl"
+      className="bg-gray-900 rounded-lg overflow-hidden border border-gray-700 shadow-xl flex flex-col h-full"
       onWheel={(e) => {
         const codeElement = codeRef.current;
         if (!codeElement) return;
@@ -609,18 +675,20 @@ const CodeViewer = ({ code, highlightedLine, stepType }) => {
       }}
       style={{ overscrollBehavior: 'contain' }}
     >
-      <div className="bg-gray-800 px-4 py-2.5 flex items-center justify-between border-b border-gray-700">
-        <div className="flex items-center gap-2">
-          <div className="flex gap-1.5">
-            <div className="w-3 h-3 rounded-full bg-red-500"></div>
-            <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
-            <div className="w-3 h-3 rounded-full bg-green-500"></div>
+      {showTitle && (
+        <div className="bg-gray-800 px-4 py-2.5 flex items-center justify-between border-b border-gray-700 flex-shrink-0">
+          <div className="flex items-center gap-2">
+            <div className="flex gap-1.5">
+              <div className="w-3 h-3 rounded-full bg-red-500"></div>
+              <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
+              <div className="w-3 h-3 rounded-full bg-green-500"></div>
+            </div>
+            <span className="text-gray-300 text-xs font-mono ml-3 font-semibold">mult_search.cpp</span>
           </div>
-          <span className="text-gray-300 text-xs font-mono ml-3 font-semibold">mult_search.cpp</span>
+          <span className="text-gray-500 text-xs">Aho-Corasick Algorithm</span>
         </div>
-        <span className="text-gray-500 text-xs">Aho-Corasick Algorithm</span>
-      </div>
-      <div ref={codeRef} className="overflow-visible bg-gray-950" style={{ overscrollBehavior: 'contain' }}>
+      )}
+      <div ref={codeRef} className="overflow-y-auto overflow-x-hidden bg-gray-950 flex-1 min-h-0" style={{ overscrollBehavior: 'contain' }}>
         <div className="py-2">
           {code.map((item, idx) => renderCodeLine(item, idx))}
         </div>
@@ -630,7 +698,7 @@ const CodeViewer = ({ code, highlightedLine, stepType }) => {
 };
 
 // Transition Table Component
-const TransitionTable = ({ trie, currentNode, transitionChar, stepType }) => {
+const TransitionTable = ({ trie, currentNode, transitionChar, stepType, showTitle = true }) => {
   if (!trie || trie.length === 0) return null;
   
   // Get all unique characters used in transitions
@@ -644,11 +712,13 @@ const TransitionTable = ({ trie, currentNode, transitionChar, stepType }) => {
   const maxStates = Math.min(15, trie.length);
   
   return (
-    <div className="bg-white rounded-lg border border-gray-300 shadow-sm overflow-hidden">
-      <div className="bg-gray-800 text-white px-4 py-2 font-semibold text-sm">
-        Transition Table / 转移表
-      </div>
-      <div className="overflow-x-auto max-h-96 overflow-y-auto">
+    <div className="bg-white rounded-lg border border-gray-300 shadow-sm overflow-hidden flex flex-col h-full">
+      {showTitle && (
+        <div className="bg-gray-800 text-white px-4 py-2 font-semibold text-sm flex-shrink-0">
+          Transition Table / 转移表
+        </div>
+      )}
+      <div className="overflow-x-auto overflow-y-auto flex-1 min-h-0">
         <table className="w-full text-xs border-collapse">
           <thead>
             <tr className="bg-gray-100 border-b border-gray-300 sticky top-0">
@@ -706,8 +776,8 @@ const TransitionTable = ({ trie, currentNode, transitionChar, stepType }) => {
           </div>
         )}
       </div>
-      <div className="px-4 py-2 bg-gray-50 border-t border-gray-200 text-xs text-gray-600">
-        <div className="flex items-center gap-4">
+      <div className="px-4 py-2 bg-gray-50 border-t border-gray-200 text-xs text-gray-600 flex-shrink-0">
+        <div className="flex items-center gap-4 flex-wrap">
           <span className="flex items-center gap-1">
             <span className="w-3 h-3 bg-blue-50 border border-blue-300"></span>
             Current State
@@ -720,6 +790,423 @@ const TransitionTable = ({ trie, currentNode, transitionChar, stepType }) => {
             <span className="text-green-600">★</span>
             Output State
           </span>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Match History Timeline Component
+const MatchHistoryTimeline = ({ matchHistory, currentStep, showTitle = true }) => {
+  if (!matchHistory || matchHistory.length === 0) {
+    return (
+      <div className="bg-white rounded-lg border border-gray-300 shadow-sm p-4 h-full flex items-center justify-center">
+        <p className="text-gray-400 text-sm">No matches found yet</p>
+      </div>
+    );
+  }
+  
+  return (
+    <div className="bg-white rounded-lg border border-gray-300 shadow-sm overflow-hidden flex flex-col h-full">
+      {showTitle && (
+        <div className="bg-gray-800 text-white px-4 py-2 font-semibold text-sm flex-shrink-0">
+          Match History / 匹配历史
+        </div>
+      )}
+      <div className="overflow-y-auto flex-1 min-h-0 p-3">
+        <div className="space-y-2">
+          {matchHistory.map((match, idx) => (
+            <div 
+              key={idx}
+              className="bg-green-50 border-l-4 border-green-500 p-2 rounded-r shadow-sm hover:shadow-md transition-shadow"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="font-bold text-green-800">{match.pattern}</span>
+                  <span className="text-xs text-gray-600 ml-2">
+                    at position [{match.start}-{match.end}]
+                  </span>
+                </div>
+                <div className="text-xs text-gray-500">
+                  Step {match.stepIndex + 1} • Char {match.charIndex}
+                </div>
+              </div>
+              <div className="text-xs text-gray-500 mt-1">
+                State: {match.state} • Found: "{match.pattern}"
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// State Transition History Component
+const StateTransitionHistory = ({ stateHistory, currentNode, stepType, showTitle = true }) => {
+  if (!stateHistory || stateHistory.length === 0) return null;
+  
+  // Get last 20 states for display
+  const recentStates = stateHistory.slice(-20);
+  
+  return (
+    <div className="bg-white rounded-lg border border-gray-300 shadow-sm overflow-hidden flex flex-col h-full">
+      {showTitle && (
+        <div className="bg-gray-800 text-white px-4 py-2 font-semibold text-sm flex-shrink-0">
+          State History / 状态历史
+        </div>
+      )}
+      <div className="overflow-x-auto overflow-y-auto flex-1 min-h-0 p-3">
+        <div className="flex items-center gap-2 flex-wrap">
+          {recentStates.map((state, idx) => {
+            const isCurrent = idx === recentStates.length - 1 && stepType !== 'init';
+            const isPrevious = idx === recentStates.length - 2;
+            return (
+              <div key={idx} className="flex items-center">
+                <div className={`px-3 py-1.5 rounded-lg border-2 transition-all ${
+                  isCurrent 
+                    ? 'bg-blue-100 border-blue-500 text-blue-800 font-bold scale-110 shadow-md' 
+                    : isPrevious
+                    ? 'bg-gray-100 border-gray-400 text-gray-700'
+                    : 'bg-gray-50 border-gray-300 text-gray-600'
+                }`}>
+                  {state}
+                </div>
+                {idx < recentStates.length - 1 && (
+                  <span className="mx-1 text-gray-400">→</span>
+                )}
+              </div>
+            );
+          })}
+          {stateHistory.length > 20 && (
+            <span className="text-xs text-gray-400 ml-2">
+              ... ({stateHistory.length - 20} earlier)
+            </span>
+          )}
+        </div>
+        <div className="mt-3 text-xs text-gray-500">
+          Total transitions: {stateHistory.length - 1}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Output Set Visualization Component
+const OutputSetVisualization = ({ trie, currentNode, showTitle = true }) => {
+  if (!trie || trie.length === 0) return null;
+  
+  const outputStates = trie
+    .map((node, idx) => ({ state: idx, outputs: node.output }))
+    .filter(item => item.outputs.length > 0);
+  
+  return (
+    <div className="bg-white rounded-lg border border-gray-300 shadow-sm overflow-hidden flex flex-col h-full">
+      {showTitle && (
+        <div className="bg-gray-800 text-white px-4 py-2 font-semibold text-sm flex-shrink-0">
+          Output Sets / 输出集合
+        </div>
+      )}
+      <div className="overflow-y-auto flex-1 min-h-0 p-3">
+        <div className="space-y-2">
+          {outputStates.map(({ state, outputs }) => (
+            <div 
+              key={state}
+              className={`p-2 rounded border ${
+                state === currentNode 
+                  ? 'bg-blue-50 border-blue-400 shadow-sm' 
+                  : 'bg-gray-50 border-gray-200'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <span className={`font-bold text-sm ${
+                  state === currentNode ? 'text-blue-700' : 'text-gray-700'
+                }`}>
+                  State {state}
+                </span>
+                {state === currentNode && (
+                  <span className="text-xs bg-blue-200 text-blue-800 px-1.5 py-0.5 rounded">Current</span>
+                )}
+              </div>
+              <div className="mt-1 flex flex-wrap gap-1">
+                {outputs.map((pattern, idx) => (
+                  <span 
+                    key={idx}
+                    className="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded border border-green-300"
+                  >
+                    {pattern}
+                  </span>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Character Processing Flow Component
+const CharacterProcessingFlow = ({ step, text, showTitle = true }) => {
+  if (!step || step.i === undefined) return null;
+  
+  const currentChar = text[step.i];
+  const flowSteps = [];
+  
+  if (step.type === 'input') {
+    flowSteps.push({ label: 'Read Char', value: `'${currentChar}'`, color: 'blue' });
+    flowSteps.push({ label: 'Check Transition', value: `State ${step.node}`, color: 'yellow' });
+  } else if (step.type === 'fail') {
+    flowSteps.push({ label: 'No Transition', value: `'${currentChar}'`, color: 'red' });
+    flowSteps.push({ label: 'Follow Fail', value: `${step.prevNode} → ${step.node}`, color: 'orange' });
+  } else if (step.type === 'goto') {
+    flowSteps.push({ label: 'Transition Found', value: `${step.prevNode} --${step.transitionChar}--> ${step.node}`, color: 'green' });
+  } else if (step.type === 'match') {
+    flowSteps.push({ label: 'Check Output', value: `State ${step.node}`, color: 'purple' });
+    flowSteps.push({ label: 'Match Found', value: step.found.join(', '), color: 'green' });
+  }
+  
+  return (
+    <div className="bg-white rounded-lg border border-gray-300 shadow-sm overflow-hidden flex flex-col h-full">
+      {showTitle && (
+        <div className="bg-gray-800 text-white px-4 py-2 font-semibold text-sm flex-shrink-0">
+          Processing Flow / 处理流程
+        </div>
+      )}
+      <div className="overflow-y-auto flex-1 min-h-0 p-3">
+        <div className="space-y-3">
+          {flowSteps.map((flowStep, idx) => {
+            const colors = {
+              blue: 'bg-blue-100 border-blue-400 text-blue-800',
+              yellow: 'bg-yellow-100 border-yellow-400 text-yellow-800',
+              red: 'bg-red-100 border-red-400 text-red-800',
+              orange: 'bg-orange-100 border-orange-400 text-orange-800',
+              green: 'bg-green-100 border-green-400 text-green-800',
+              purple: 'bg-purple-100 border-purple-400 text-purple-800',
+            };
+            return (
+              <div key={idx} className="flex items-center gap-3">
+                <div className={`px-3 py-2 rounded-lg border-2 ${colors[flowStep.color] || 'bg-gray-100'} font-medium text-sm`}>
+                  {flowStep.label}
+                </div>
+                <span className="text-gray-400">→</span>
+                <div className="flex-1 font-mono text-sm text-gray-700 bg-gray-50 px-3 py-2 rounded border border-gray-200">
+                  {flowStep.value}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        {step.i !== undefined && (
+          <div className="mt-4 pt-3 border-t border-gray-200">
+            <div className="text-xs text-gray-500">
+              <div>Position: {step.i} / {text.length - 1}</div>
+              <div>Character: '{currentChar}'</div>
+              <div>State: {step.node}</div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// Optimization Visualization Component
+const OptimizationVisualization = ({ trie, currentNode, transitionChar, showTitle = true }) => {
+  if (!trie || currentNode === undefined) return null;
+  
+  const currentNodeData = trie[currentNode];
+  if (!currentNodeData) return null;
+  
+  // Show optimized transitions (direct go vs following fail)
+  const optimizedTransitions = [];
+  Object.keys(currentNodeData.next).forEach(char => {
+    const directState = currentNodeData.next[char];
+    optimizedTransitions.push({
+      char,
+      directState,
+      isOptimized: true,
+      isActive: transitionChar === char
+    });
+  });
+  
+  return (
+    <div className="bg-white rounded-lg border border-gray-300 shadow-sm overflow-hidden flex flex-col h-full">
+      {showTitle && (
+        <div className="bg-gray-800 text-white px-4 py-2 font-semibold text-sm flex-shrink-0">
+          Optimized Transitions / 优化转移
+        </div>
+      )}
+      <div className="overflow-y-auto flex-1 min-h-0 p-3">
+        <div className="mb-3 text-xs text-gray-600 bg-blue-50 p-2 rounded border border-blue-200">
+          <strong>Optimization:</strong> Direct transitions (O(1)) instead of following fail links
+        </div>
+        <div className="space-y-2">
+          {optimizedTransitions.length > 0 ? (
+            optimizedTransitions.map((trans, idx) => (
+              <div 
+                key={idx}
+                className={`p-2 rounded border ${
+                  trans.isActive 
+                    ? 'bg-blue-100 border-blue-400 shadow-sm' 
+                    : 'bg-gray-50 border-gray-200'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <span className="font-mono text-sm">'{trans.char}'</span>
+                  <span className="text-gray-400">→</span>
+                  <span className={`font-bold ${
+                    trans.isActive ? 'text-blue-700' : 'text-gray-700'
+                  }`}>
+                    State {trans.directState}
+                  </span>
+                  {trans.isActive && (
+                    <span className="ml-auto text-xs bg-blue-200 text-blue-800 px-1.5 py-0.5 rounded">Active</span>
+                  )}
+                </div>
+                <div className="text-xs text-gray-500 mt-1">
+                  Direct transition (optimized)
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="text-sm text-gray-400 text-center py-4">
+              No transitions from state {currentNode}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Failure Link Tree Component
+const FailureLinkTree = ({ trie, layout, currentNode, stepType, showTitle = true }) => {
+  if (!trie || !layout) return null;
+  
+  const { nodes, links } = layout;
+  const failLinks = links.filter(link => link.type === 'fail');
+  
+  return (
+    <div className="bg-white rounded-lg border border-gray-300 shadow-sm overflow-hidden flex flex-col h-full">
+      {showTitle && (
+        <div className="bg-gray-800 text-white px-4 py-2 font-semibold text-sm flex-shrink-0">
+          Failure Links / 失败链接
+        </div>
+      )}
+      <div className="overflow-auto flex-1 min-h-0 p-4">
+        <div className="text-xs text-gray-500 mb-3">
+          Simplified view showing only failure link relationships
+        </div>
+        <svg width={Math.min(600, nodes.length * 80)} height={Math.min(400, failLinks.length * 60)} className="border rounded bg-gray-50">
+          <defs>
+            <marker id="arrowhead-fail-tree" markerWidth="10" markerHeight="7" refX="28" refY="3.5" orient="auto">
+              <polygon points="0 0, 10 3.5, 0 7" fill="#ef4444" />
+            </marker>
+          </defs>
+          {failLinks.map((link, idx) => {
+            const source = nodes[link.source];
+            const target = nodes[link.target];
+            if (!source || !target) return null;
+            
+            const isActive = stepType === 'fail' && currentNode === link.target;
+            
+            return (
+              <g key={idx}>
+                <line
+                  x1={source.x * 0.5 + 50}
+                  y1={source.y * 0.5 + 50}
+                  x2={target.x * 0.5 + 50}
+                  y2={target.y * 0.5 + 50}
+                  stroke={isActive ? "#ef4444" : "#f87171"}
+                  strokeWidth={isActive ? 3 : 1.5}
+                  strokeDasharray="5,5"
+                  markerEnd="url(#arrowhead-fail-tree)"
+                  opacity={isActive ? 1 : 0.6}
+                  className={isActive ? "animate-pulse" : ""}
+                />
+                <circle
+                  cx={source.x * 0.5 + 50}
+                  cy={source.y * 0.5 + 50}
+                  r="12"
+                  fill="#fff"
+                  stroke={source.id === currentNode ? "#3b82f6" : "#cbd5e1"}
+                  strokeWidth="2"
+                />
+                <text
+                  x={source.x * 0.5 + 50}
+                  y={source.y * 0.5 + 50}
+                  dy="4"
+                  textAnchor="middle"
+                  fontSize="10"
+                  fontWeight="bold"
+                  fill="#1f2937"
+                >
+                  {source.id}
+                </text>
+              </g>
+            );
+          })}
+        </svg>
+        <div className="mt-3 text-xs text-gray-500">
+          Total failure links: {failLinks.length}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Match Counter & Statistics Component
+const MatchCounterStats = ({ matches, matchHistory, patterns, showTitle = true }) => {
+  const totalMatches = matches?.length || 0;
+  const patternCounts = {};
+  
+  if (matches) {
+    matches.forEach(m => {
+      patternCounts[m.pattern] = (patternCounts[m.pattern] || 0) + 1;
+    });
+  }
+  
+  return (
+    <div className="bg-white rounded-lg border border-gray-300 shadow-sm overflow-hidden flex flex-col h-full">
+      {showTitle && (
+        <div className="bg-gray-800 text-white px-4 py-2 font-semibold text-sm flex-shrink-0">
+          Statistics / 统计信息
+        </div>
+      )}
+      <div className="overflow-y-auto flex-1 min-h-0 p-3">
+        <div className="space-y-4">
+          {/* Total Matches */}
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+            <div className="text-xs text-blue-600 mb-1">Total Matches</div>
+            <div className="text-2xl font-bold text-blue-800">{totalMatches}</div>
+          </div>
+          
+          {/* Per Pattern Counts */}
+          <div>
+            <div className="text-xs font-semibold text-gray-700 mb-2">Matches per Pattern</div>
+            <div className="space-y-1">
+              {Object.entries(patternCounts).map(([pattern, count]) => (
+                <div key={pattern} className="flex items-center justify-between bg-gray-50 p-2 rounded border border-gray-200">
+                  <span className="font-mono text-sm text-gray-700">{pattern}</span>
+                  <span className="bg-green-100 text-green-800 px-2 py-1 rounded text-sm font-bold">
+                    {count}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+          
+          {/* Additional Stats */}
+          {matchHistory && matchHistory.length > 0 && (
+            <div className="pt-3 border-t border-gray-200">
+              <div className="text-xs text-gray-600 space-y-1">
+                <div>First match: Step {matchHistory[0]?.stepIndex + 1}</div>
+                <div>Last match: Step {matchHistory[matchHistory.length - 1]?.stepIndex + 1}</div>
+                <div>Unique patterns: {Object.keys(patternCounts).length}</div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -1189,7 +1676,7 @@ const App = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 p-2 md:p-4 font-sans text-gray-800">
+    <div className="min-h-screen bg-gray-100 p-1 md:p-2 font-sans text-gray-800">
       <style>{`
         @keyframes scaleIn {
             0% { transform: scale(0.8); opacity: 0.5; }
@@ -1208,7 +1695,7 @@ const App = () => {
         .animate-slideInUp { animation: slideInUp 0.5s ease-out forwards; }
       `}</style>
 
-      <div className="w-full space-y-4">
+      <div className="w-full space-y-2">
         
         {/* Header */}
         <header className="flex flex-col md:flex-row justify-between items-center bg-white p-6 rounded-2xl shadow-sm border border-gray-200">
@@ -1251,8 +1738,8 @@ const App = () => {
 
         {/* Configuration Panel - Above Visualization for AC algorithm */}
         {algo === 'ac' && (
-          <Card title="Configuration / 配置">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Card title="Configuration / 配置" className="mb-2">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Text (Main String) <span className="text-gray-400 font-normal">/ 文本(主串)</span>
@@ -1405,37 +1892,54 @@ const App = () => {
 
         {/* Visualization Panel - Full width for AC algorithm */}
         {algo === 'ac' && (
-          <Card title="Visualization / 演示" className="min-h-[500px] flex flex-col">
-            {/* Control Bar */}
-            <div className="flex justify-center items-center gap-4 mb-6 p-2 bg-gray-50 rounded-full w-fit mx-auto border border-gray-200">
-              <ControlButton icon={RotateCcw} onClick={() => { setIsPlaying(false); setCurrentStep(0); }} />
-              <ControlButton icon={SkipBack} onClick={() => { setIsPlaying(false); setCurrentStep(Math.max(0, currentStep - 1)); }} disabled={currentStep === 0} />
-              <ControlButton icon={isPlaying ? Pause : Play} onClick={() => setIsPlaying(!isPlaying)} />
-              <ControlButton icon={SkipForward} onClick={() => { setIsPlaying(false); setCurrentStep(Math.min(steps.length - 1, currentStep + 1)); }} disabled={currentStep === steps.length - 1} />
-            </div>
-
-            {/* Explanation Box */}
-            <div className="mb-6 bg-blue-50 border-l-4 border-blue-500 p-4 rounded-r-lg shadow-sm min-h-[100px] transition-all duration-300">
-              <div className="flex items-start">
-                <Info className="text-blue-500 mr-3 mt-1 flex-shrink-0" size={20} />
-                <div className="w-full">
-                  <p className="text-blue-900 font-medium text-lg leading-relaxed">
+          <Card 
+            title={
+              <div className="flex items-center justify-between w-full">
+                <span>Visualization / 演示</span>
+                <div className="flex items-center gap-3">
+                  {/* Control Bar - Compact inline */}
+                  <div className="flex items-center gap-2 p-1 bg-gray-100 rounded-full border border-gray-300">
+                    <ControlButton icon={RotateCcw} onClick={() => { setIsPlaying(false); setCurrentStep(0); }} />
+                    <ControlButton icon={SkipBack} onClick={() => { setIsPlaying(false); setCurrentStep(Math.max(0, currentStep - 1)); }} disabled={currentStep === 0} />
+                    <ControlButton icon={isPlaying ? Pause : Play} onClick={() => setIsPlaying(!isPlaying)} />
+                    <ControlButton icon={SkipForward} onClick={() => { setIsPlaying(false); setCurrentStep(Math.min(steps.length - 1, currentStep + 1)); }} disabled={currentStep === steps.length - 1} />
+                  </div>
+                  <span className="text-xs text-gray-300 font-mono">Step {currentStep + 1} / {steps.length}</span>
+                </div>
+              </div>
+            } 
+            className="flex flex-col"
+            style={{ height: 'calc(100vh - 240px)', maxHeight: 'calc(100vh - 240px)' }}
+          >
+            {/* Explanation Box - Compact */}
+            <div className="mb-2 bg-blue-50 border-l-4 border-blue-500 p-2 rounded-r-lg shadow-sm transition-all duration-300 flex-shrink-0">
+              <div className="flex items-start gap-1.5">
+                <Info className="text-blue-500 mt-0.5 flex-shrink-0" size={16} />
+                <div className="flex-1 min-w-0">
+                  <p className="text-blue-900 font-medium text-xs leading-tight">
                     {step.desc?.en || "Ready to start..."}
                   </p>
-                  <p className="text-blue-700/80 mt-2 border-t border-blue-200 pt-2 text-base">
+                  <p className="text-blue-700/80 mt-0.5 text-xs leading-tight">
                     {step.desc?.zh || "准备开始..."}
                   </p>
                 </div>
               </div>
             </div>
 
-            {/* Main Visuals */}
-            <div className="flex-1 overflow-x-auto">
+            {/* Main Visuals - Scrollable */}
+            <div className="flex-1 overflow-y-auto overflow-x-hidden min-h-0">
               {/* Text String Always Visible */}
-              <div className="mb-6">
-                <h5 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
-                  Text Stream / 文本流
-                </h5>
+              <div className="mb-2 flex-shrink-0">
+                <div className="mb-1">
+                  <VizTitle 
+                    title="Text Stream / 文本流"
+                    tooltip={{
+                      title: "Text Stream",
+                      description: "The input text being processed character by character. Matched patterns are highlighted with different colors and labeled above. The blue highlight shows the current character being processed.",
+                      zh: "正在逐字符处理的输入文本。匹配的模式用不同颜色高亮并在上方标注。蓝色高亮显示当前正在处理的字符。"
+                    }}
+                  />
+                </div>
                 {renderHighlightText(
                   text, 
                   step.i !== undefined ? [step.i] : [], 
@@ -1443,11 +1947,11 @@ const App = () => {
                   step.matches || []
                 )}
                 {step.matches && step.matches.length > 0 && (
-                  <div className="mt-2 text-xs text-gray-600">
-                    <span className="font-semibold">Matches found: </span>
+                  <div className="mt-1 text-xs text-gray-600 flex flex-wrap gap-1">
+                    <span className="font-semibold">Matches:</span>
                     {step.matches.map((m, idx) => (
-                      <span key={idx} className="mr-2">
-                        <span className="font-mono">"{m.pattern}"</span> at [{m.start}-{m.end}]
+                      <span key={idx} className="font-mono text-xs">
+                        "{m.pattern}"[{m.start}-{m.end}]
                       </span>
                     ))}
                   </div>
@@ -1455,45 +1959,229 @@ const App = () => {
               </div>
 
               {/* Algorithm Details Panel */}
-              <div className="border-t pt-4">
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+              <div className="border-t pt-2">
+                {/* First Row: Main Visualizations */}
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 mb-3">
                   {/* Code Viewer - 4 columns */}
-                  <div className="lg:col-span-4">
-                    <h5 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">
-                      Code / 代码
-                    </h5>
-                    <CodeViewer 
-                      code={AC_CODE}
-                      highlightedLine={getCodeLineForStep(step.type, step)}
-                      stepType={step.type}
-                    />
+                  <div className="lg:col-span-4 flex flex-col min-h-0">
+                    <div className="mb-1 flex-shrink-0">
+                      <VizTitle 
+                        title="Code / 代码"
+                        tooltip={{
+                          title: "Code Viewer",
+                          description: "Shows the executing C++ code for the Aho-Corasick algorithm. The highlighted line indicates the current execution point.",
+                          zh: "显示 Aho-Corasick 算法的执行代码。高亮行表示当前执行位置。"
+                        }}
+                      />
+                    </div>
+                    <div className="flex-1 min-h-0 overflow-hidden">
+                      <CodeViewer 
+                        code={AC_CODE}
+                        highlightedLine={getCodeLineForStep(step.type, step)}
+                        stepType={step.type}
+                      />
+                    </div>
                   </div>
                   {/* Visualization - 5 columns */}
-                  <div className="lg:col-span-5">
-                    <h5 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">
-                      Visualization / 可视化
-                    </h5>
-                    {renderACViz()}
+                  <div className="lg:col-span-5 flex flex-col min-h-0">
+                    <div className="mb-1 flex-shrink-0">
+                      <VizTitle 
+                        title="Visualization / 可视化"
+                        tooltip={{
+                          title: "AC Automaton (Trie)",
+                          description: "Interactive graph showing the AC automaton structure. Solid arrows are character transitions, dashed red arrows are failure links. The blue circle highlights the current state.",
+                          zh: "显示 AC 自动机结构的交互式图。实线箭头是字符转移，红色虚线箭头是失败链接。蓝色圆圈高亮当前状态。"
+                        }}
+                      />
+                    </div>
+                    <div className="flex-1 min-h-0 overflow-auto">
+                      {renderACViz()}
+                    </div>
                   </div>
                   {/* Transition Table - 3 columns */}
-                  <div className="lg:col-span-3">
-                    <h5 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">
-                      Transitions / 转移表
-                    </h5>
-                    <TransitionTable 
-                      trie={step.trie}
-                      currentNode={step.node}
-                      transitionChar={step.transitionChar}
-                      stepType={step.type}
-                    />
+                  <div className="lg:col-span-3 flex flex-col min-h-0">
+                    <div className="mb-1 flex-shrink-0">
+                      <VizTitle 
+                        title="Transitions / 转移表"
+                        tooltip={{
+                          title: "Transition Table",
+                          description: "Table showing all possible character transitions from each state. The highlighted row is the current state, and highlighted cells show active transitions.",
+                          zh: "显示每个状态的所有可能字符转移的表。高亮行是当前状态，高亮单元格显示活动转移。"
+                        }}
+                      />
+                    </div>
+                    <div className="flex-1 min-h-0 overflow-auto">
+                      <TransitionTable 
+                        trie={step.trie}
+                        currentNode={step.node}
+                        transitionChar={step.transitionChar}
+                        stepType={step.type}
+                      />
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Second Row: Additional Visualizations */}
+                <div className="space-y-2">
+                  {/* First row of additional visualizations */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2">
+                    {/* Match History Timeline */}
+                    <div className="flex flex-col min-h-0" style={{ minHeight: '180px' }}>
+                      <div className="mb-1 flex-shrink-0 px-3 pt-2">
+                        <VizTitle 
+                          title="Match History / 匹配历史"
+                          tooltip={{
+                            title: "Match History Timeline",
+                            description: "Chronological list of all patterns found during execution. Shows pattern name, position in text, step number, and state where match occurred.",
+                            zh: "执行过程中找到的所有模式的按时间顺序列表。显示模式名称、文本中的位置、步骤号和匹配发生的状态。"
+                          }}
+                        />
+                      </div>
+                      <div className="flex-1 min-h-0">
+                        <MatchHistoryTimeline 
+                          matchHistory={step.matchHistory || []}
+                          currentStep={currentStep}
+                          showTitle={false}
+                        />
+                      </div>
+                    </div>
+                    
+                    {/* State Transition History */}
+                    <div className="flex flex-col min-h-0" style={{ minHeight: '180px' }}>
+                      <div className="mb-1 flex-shrink-0 px-3 pt-2">
+                        <VizTitle 
+                          title="State History / 状态历史"
+                          tooltip={{
+                            title: "State Transition History",
+                            description: "Breadcrumb trail showing the sequence of states visited during execution. The highlighted state is the current one.",
+                            zh: "显示执行过程中访问的状态序列的面包屑轨迹。高亮状态是当前状态。"
+                          }}
+                        />
+                      </div>
+                      <div className="flex-1 min-h-0">
+                        <StateTransitionHistory 
+                          stateHistory={step.stateHistory || []}
+                          currentNode={step.node}
+                          stepType={step.type}
+                          showTitle={false}
+                        />
+                      </div>
+                    </div>
+                    
+                    {/* Character Processing Flow */}
+                    <div className="flex flex-col min-h-0" style={{ minHeight: '180px' }}>
+                      <div className="mb-1 flex-shrink-0 px-3 pt-2">
+                        <VizTitle 
+                          title="Processing Flow / 处理流程"
+                          tooltip={{
+                            title: "Character Processing Flow",
+                            description: "Step-by-step visualization of how each character is processed: reading, checking transitions, following failure links, and checking outputs.",
+                            zh: "每个字符处理方式的逐步可视化：读取、检查转移、跟随失败链接和检查输出。"
+                          }}
+                        />
+                      </div>
+                      <div className="flex-1 min-h-0">
+                        <CharacterProcessingFlow 
+                          step={step}
+                          text={text}
+                          showTitle={false}
+                        />
+                      </div>
+                    </div>
+                    
+                    {/* Match Counter & Statistics */}
+                    <div className="flex flex-col min-h-0" style={{ minHeight: '180px' }}>
+                      <div className="mb-1 flex-shrink-0 px-3 pt-2">
+                        <VizTitle 
+                          title="Statistics / 统计信息"
+                          tooltip={{
+                            title: "Match Counter & Statistics",
+                            description: "Shows total matches found, matches per pattern, and processing statistics like first/last match positions and unique pattern count.",
+                            zh: "显示找到的总匹配数、每个模式的匹配数以及处理统计信息，如第一个/最后一个匹配位置和唯一模式计数。"
+                          }}
+                        />
+                      </div>
+                      <div className="flex-1 min-h-0">
+                        <MatchCounterStats 
+                          matches={step.matches || []}
+                          matchHistory={step.matchHistory || []}
+                          patterns={patternsAC.split(',').map(s => s.trim()).filter(s => s.length > 0)}
+                          showTitle={false}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Second row of additional visualizations */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                    {/* Output Set Visualization */}
+                    <div className="flex flex-col min-h-0" style={{ minHeight: '180px' }}>
+                      <div className="mb-1 flex-shrink-0 px-3 pt-2">
+                        <VizTitle 
+                          title="Output Sets / 输出集合"
+                          tooltip={{
+                            title: "Output Set Visualization",
+                            description: "Lists all states that have output patterns. Shows which patterns end at each state. The current state is highlighted.",
+                            zh: "列出所有具有输出模式的状态。显示哪些模式在每个状态结束。当前状态被高亮显示。"
+                          }}
+                        />
+                      </div>
+                      <div className="flex-1 min-h-0">
+                        <OutputSetVisualization 
+                          trie={step.trie}
+                          currentNode={step.node}
+                          showTitle={false}
+                        />
+                      </div>
+                    </div>
+                    
+                    {/* Optimization Visualization */}
+                    <div className="flex flex-col min-h-0" style={{ minHeight: '180px' }}>
+                      <div className="mb-1 flex-shrink-0 px-3 pt-2">
+                        <VizTitle 
+                          title="Optimized Transitions / 优化转移"
+                          tooltip={{
+                            title: "Optimization Visualization",
+                            description: "Shows the optimized direct transitions (O(1)) from the current state. These transitions avoid following failure links by pre-computing them during automaton construction.",
+                            zh: "显示从当前状态的优化直接转移（O(1)）。这些转移通过在自动机构建期间预计算来避免跟随失败链接。"
+                          }}
+                        />
+                      </div>
+                      <div className="flex-1 min-h-0">
+                        <OptimizationVisualization 
+                          trie={step.trie}
+                          currentNode={step.node}
+                          transitionChar={step.transitionChar}
+                          showTitle={false}
+                        />
+                      </div>
+                    </div>
+                    
+                    {/* Failure Link Tree */}
+                    <div className="flex flex-col min-h-0" style={{ minHeight: '180px' }}>
+                      <div className="mb-1 flex-shrink-0 px-3 pt-2">
+                        <VizTitle 
+                          title="Failure Links / 失败链接"
+                          tooltip={{
+                            title: "Failure Link Tree",
+                            description: "Simplified view showing only the failure links in the automaton. Failure links point to the longest proper suffix that is also a prefix of some pattern.",
+                            zh: "仅显示自动机中失败链接的简化视图。失败链接指向某个模式的最长真后缀，同时也是某个模式的前缀。"
+                          }}
+                        />
+                      </div>
+                      <div className="flex-1 min-h-0">
+                        <FailureLinkTree 
+                          trie={step.trie}
+                          layout={step.layout}
+                          currentNode={step.node}
+                          stepType={step.type}
+                          showTitle={false}
+                        />
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-
-            {/* Step Counter */}
-            <div className="mt-auto pt-4 text-right text-xs text-gray-400">
-              Step {currentStep + 1} / {steps.length}
             </div>
           </Card>
         )}
