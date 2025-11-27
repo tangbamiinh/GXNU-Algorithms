@@ -725,29 +725,31 @@ const RK_CODE = [
   { line: 5, code: "    int h = 1, p = 0, t = 0;", phase: "search" },
   { line: 6, code: "", phase: "search" },
   { line: 7, code: "    // Calculate h = d^(m-1) % q", phase: "search" },
-  { line: 8, code: "    for (int i = 0; i < m - 1; i++)", phase: "search" },
+  { line: 8, code: "    for (int i = 0; i < m - 1; i++) {", phase: "search" },
   { line: 9, code: "        h = (h * d) % q;", phase: "search" },
-  { line: 10, code: "", phase: "search" },
-  { line: 11, code: "    // Calculate initial hash values", phase: "search" },
-  { line: 12, code: "    for (int i = 0; i < m; i++) {", phase: "search" },
-  { line: 13, code: "        p = (d * p + pattern[i]) % q;", phase: "search" },
-  { line: 14, code: "        t = (d * t + text[i]) % q;", phase: "search" },
-  { line: 15, code: "    }", phase: "search" },
-  { line: 16, code: "", phase: "search" },
-  { line: 17, code: "    for (int i = 0; i <= n - m; i++) {", phase: "search" },
-  { line: 18, code: "        if (p == t) {", phase: "search" },
-  { line: 19, code: "            // Verify by comparing characters", phase: "search" },
-  { line: 20, code: "            if (text.substr(i, m) == pattern)", phase: "search" },
-  { line: 21, code: "                return i;", phase: "search" },
-  { line: 22, code: "        }", phase: "search" },
-  { line: 23, code: "        if (i < n - m) {", phase: "search" },
-  { line: 24, code: "            // Rolling hash", phase: "search" },
-  { line: 25, code: "            t = (d * (t - text[i] * h) + text[i+m]) % q;", phase: "search" },
-  { line: 26, code: "            if (t < 0) t += q;", phase: "search" },
-  { line: 27, code: "        }", phase: "search" },
-  { line: 28, code: "    }", phase: "search" },
-  { line: 29, code: "    return -1;", phase: "search" },
-  { line: 30, code: "}", phase: "search" },
+  { line: 10, code: "    }", phase: "search" },
+  { line: 11, code: "", phase: "search" },
+  { line: 12, code: "    // Calculate initial hash values", phase: "search" },
+  { line: 13, code: "    for (int i = 0; i < m; i++) {", phase: "search" },
+  { line: 14, code: "        p = (d * p + pattern[i]) % q;", phase: "search" },
+  { line: 15, code: "        t = (d * t + text[i]) % q;", phase: "search" },
+  { line: 16, code: "    }", phase: "search" },
+  { line: 17, code: "", phase: "search" },
+  { line: 18, code: "    for (int i = 0; i <= n - m; i++) {", phase: "search" },
+  { line: 19, code: "        if (p == t) {", phase: "search" },
+  { line: 20, code: "            // Verify by comparing characters", phase: "search" },
+  { line: 21, code: "            if (text.substr(i, m) == pattern) {", phase: "search" },
+  { line: 22, code: "                return i;", phase: "search" },
+  { line: 23, code: "            }", phase: "search" },
+  { line: 24, code: "        }", phase: "search" },
+  { line: 25, code: "        if (i < n - m) {", phase: "search" },
+  { line: 26, code: "            // Rolling hash", phase: "search" },
+  { line: 27, code: "            t = (d * (t - text[i] * h) + text[i+m]) % q;", phase: "search" },
+  { line: 28, code: "            if (t < 0) t += q;", phase: "search" },
+  { line: 29, code: "        }", phase: "search" },
+  { line: 30, code: "    }", phase: "search" },
+  { line: 31, code: "    return -1;", phase: "search" },
+  { line: 32, code: "}", phase: "search" },
 ];
 
 // AC Algorithm Code (from textbook)
@@ -2525,74 +2527,79 @@ const App = () => {
                       </div>
                     </div>
                   ) : (
-                    /* Rabin-Karp Algorithm Layout: Code + Hash Visualization + (Hash Details + Statistics) = 3 cols */
-                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 mb-3">
-                      {/* Code Viewer */}
-                      <div className="lg:col-span-4 flex flex-col min-h-0">
-                        <div className="mb-1 flex-shrink-0">
-                          <VizTitle 
-                            title="Code / 代码"
-                            tooltip={{
-                              title: "Code Viewer",
-                              description: "Shows the executing code for the Rabin-Karp algorithm. The highlighted line indicates the current execution point.",
-                              zh: "显示 Rabin-Karp 算法的执行代码。高亮行表示当前执行位置。"
-                            }}
-                          />
-                        </div>
-                        <div className="flex-1 min-h-0 overflow-hidden">
-                          <CodeViewer 
-                            code={RK_CODE}
-                            highlightedLine={getCodeLineForStep('rk', step.type, step)}
-                            stepType={step.type}
-                            showTitle={true}
-                            fileName="rabin_karp.cpp"
-                            algorithmName="Rabin-Karp Algorithm"
-                          />
-                        </div>
-                      </div>
-
-                      {/* Hash Visualization */}
-                      <div className="lg:col-span-4 flex flex-col min-h-0">
-                        <div className="mb-1 flex-shrink-0">
-                          <VizTitle 
-                            title="Hash Values / 哈希值"
-                            tooltip={{
-                              title: "Hash Visualization",
-                              description: "Shows pattern hash (Hp) and window hash (Ht) values with rolling hash animations.",
-                              zh: "显示模式哈希 (Hp) 和窗口哈希 (Ht) 值，带有滚动哈希动画。"
-                            }}
-                          />
-                        </div>
-                        <div className="flex-1 min-h-0 overflow-auto">
-                          {renderRKViz()}
-                        </div>
-                      </div>
-
-                      {/* Hash Details + Statistics Combined */}
-                      <div className="lg:col-span-4 flex flex-col min-h-0">
-                        <div className="mb-1 flex-shrink-0">
-                          <VizTitle 
-                            title="Details & Statistics / 详情与统计"
-                            tooltip={{
-                              title: "Hash Details & Statistics",
-                              description: "Shows hash parameters, rolling hash formula, collision information, and match statistics.",
-                              zh: "显示哈希参数、滚动哈希公式、冲突信息和匹配统计。"
-                            }}
-                          />
-                        </div>
-                        <div className="flex-1 min-h-0 overflow-auto space-y-3">
-                          {/* Hash Details */}
-                          <div className="flex-1 min-h-0">
-                            <RKHashDetails step={step} showTitle={false} />
-                          </div>
-                          {/* Statistics */}
-                          <div className="flex-1 min-h-0">
-                            <RKStatistics 
-                              matches={step.matches || []}
-                              hashCollisions={step.hashCollisions}
-                              hashHistory={step.hashHistory}
-                              showTitle={false}
+                    /* Rabin-Karp Algorithm Layout: Code + Hash Values in row 1, Details & Statistics below Hash Values */
+                    <div className="mb-3">
+                      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
+                        {/* Code Viewer */}
+                        <div className="lg:col-span-6 flex flex-col min-h-0">
+                          <div className="mb-1 flex-shrink-0">
+                            <VizTitle 
+                              title="Code / 代码"
+                              tooltip={{
+                                title: "Code Viewer",
+                                description: "Shows the executing code for the Rabin-Karp algorithm. The highlighted line indicates the current execution point.",
+                                zh: "显示 Rabin-Karp 算法的执行代码。高亮行表示当前执行位置。"
+                              }}
                             />
+                          </div>
+                          <div className="flex-1 min-h-0 overflow-hidden">
+                            <CodeViewer 
+                              code={RK_CODE}
+                              highlightedLine={getCodeLineForStep('rk', step.type, step)}
+                              stepType={step.type}
+                              showTitle={true}
+                              fileName="rabin_karp.cpp"
+                              algorithmName="Rabin-Karp Algorithm"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Right Column: Hash Values + Details & Statistics stacked */}
+                        <div className="lg:col-span-6 flex flex-col min-h-0 gap-3">
+                          {/* Hash Visualization */}
+                          <div className="flex flex-col min-h-0 flex-shrink-0">
+                            <div className="mb-1 flex-shrink-0">
+                              <VizTitle 
+                                title="Hash Values / 哈希值"
+                                tooltip={{
+                                  title: "Hash Visualization",
+                                  description: "Shows pattern hash (Hp) and window hash (Ht) values with rolling hash animations.",
+                                  zh: "显示模式哈希 (Hp) 和窗口哈希 (Ht) 值，带有滚动哈希动画。"
+                                }}
+                              />
+                            </div>
+                            <div className="flex-1 min-h-0 overflow-auto">
+                              {renderRKViz()}
+                            </div>
+                          </div>
+
+                          {/* Hash Details + Statistics Combined */}
+                          <div className="flex flex-col min-h-0 flex-1">
+                            <div className="mb-1 flex-shrink-0">
+                              <VizTitle 
+                                title="Details & Statistics / 详情与统计"
+                                tooltip={{
+                                  title: "Hash Details & Statistics",
+                                  description: "Shows hash parameters, rolling hash formula, collision information, and match statistics.",
+                                  zh: "显示哈希参数、滚动哈希公式、冲突信息和匹配统计。"
+                                }}
+                              />
+                            </div>
+                            <div className="flex-1 min-h-0 overflow-auto space-y-3">
+                              {/* Hash Details */}
+                              <div className="flex-1 min-h-0">
+                                <RKHashDetails step={step} showTitle={false} />
+                              </div>
+                              {/* Statistics */}
+                              <div className="flex-1 min-h-0">
+                                <RKStatistics 
+                                  matches={step.matches || []}
+                                  hashCollisions={step.hashCollisions}
+                                  hashHistory={step.hashHistory}
+                                  showTitle={false}
+                                />
+                              </div>
+                            </div>
                           </div>
                         </div>
                       </div>
