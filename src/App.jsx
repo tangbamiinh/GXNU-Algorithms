@@ -760,7 +760,7 @@ const getCodeLineForStep = (algo, stepType, step) => {
 };
 
 // Code Viewer Component
-const CodeViewer = ({ code, highlightedLine, stepType, showTitle = true }) => {
+const CodeViewer = ({ code, highlightedLine, stepType, showTitle = true, fileName, algorithmName }) => {
   const codeRef = useRef(null);
   const highlightedRef = useRef(null);
 
@@ -827,14 +827,14 @@ const CodeViewer = ({ code, highlightedLine, stepType, showTitle = true }) => {
             : isEmpty
             ? 'text-gray-600'
             : 'text-gray-300 hover:bg-gray-800/50'
-        } px-3 py-1.5 transition-all duration-200`}
+        } px-3 py-0 transition-all duration-200`}
       >
         <span className={`mr-4 w-8 text-right select-none ${
           isHighlighted ? 'text-blue-300 font-bold' : 'text-gray-500'
         }`}>
           {item.line}
         </span>
-        <span className="flex-1 font-mono text-sm whitespace-pre">
+        <span className="flex-1 font-mono text-sm whitespace-pre leading-tight">
           {isEmpty ? '\u00A0' : renderSyntax(item.code)}
         </span>
         {isHighlighted && (
@@ -876,13 +876,13 @@ const CodeViewer = ({ code, highlightedLine, stepType, showTitle = true }) => {
               <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
               <div className="w-3 h-3 rounded-full bg-green-500"></div>
             </div>
-            <span className="text-gray-300 text-xs font-mono ml-3 font-semibold">mult_search.cpp</span>
+            <span className="text-gray-300 text-xs font-mono ml-3 font-semibold">{fileName || 'mult_search.cpp'}</span>
           </div>
-          <span className="text-gray-500 text-xs">Aho-Corasick Algorithm</span>
+          <span className="text-gray-500 text-xs">{algorithmName || 'Aho-Corasick Algorithm'}</span>
         </div>
       )}
       <div ref={codeRef} className="overflow-y-auto overflow-x-hidden bg-gray-950 flex-1 min-h-0" style={{ overscrollBehavior: 'contain' }}>
-        <div className="py-2">
+        <div className="py-0.5">
           {code.map((item, idx) => renderCodeLine(item, idx))}
         </div>
       </div>
@@ -2347,7 +2347,9 @@ const App = () => {
                             code={NAIVE_CODE}
                             highlightedLine={getCodeLineForStep('naive', step.type, step)}
                             stepType={step.type}
-                            showTitle={false}
+                            showTitle={true}
+                            fileName="naive_search.cpp"
+                            algorithmName="Naive String Matching"
                           />
                         </div>
                       </div>
@@ -2412,7 +2414,9 @@ const App = () => {
                             code={KMP_CODE}
                             highlightedLine={getCodeLineForStep('kmp', step.type, step)}
                             stepType={step.type}
-                            showTitle={false}
+                            showTitle={true}
+                            fileName="kmp_search.cpp"
+                            algorithmName="KMP Algorithm"
                           />
                         </div>
                       </div>
@@ -2488,7 +2492,9 @@ const App = () => {
                             code={RK_CODE}
                             highlightedLine={getCodeLineForStep('rk', step.type, step)}
                             stepType={step.type}
-                            showTitle={false}
+                            showTitle={true}
+                            fileName="rabin_karp.cpp"
+                            algorithmName="Rabin-Karp Algorithm"
                           />
                         </div>
                       </div>
@@ -2634,6 +2640,8 @@ const App = () => {
                         code={AC_CODE}
                         highlightedLine={getCodeLineForStep('ac', step.type, step)}
                         stepType={step.type}
+                        fileName="mult_search.cpp"
+                        algorithmName="Aho-Corasick Algorithm"
                       />
                     </div>
                   </div>
