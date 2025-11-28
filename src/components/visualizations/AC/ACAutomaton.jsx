@@ -1,9 +1,69 @@
+// Helper function to build a map of node ID -> character label
+const buildNodeCharMap = (trie, links = []) => {
+  const nodeCharMap = { 0: 'ROOT' }; // Root node has no character
+  
+  if (trie) {
+    // Use trie structure to find which character leads to each node
+    trie.forEach((parentNode, parentId) => {
+      Object.entries(parentNode.next || {}).forEach(([char, childId]) => {
+        if (childId !== 0 && !nodeCharMap[childId]) {
+          nodeCharMap[childId] = char;
+        }
+      });
+    });
+  } else if (links && links.length > 0) {
+    // Fallback: use links to determine character labels
+    links.forEach(link => {
+      if (link.type === 'next' && link.label && link.target !== 0) {
+        nodeCharMap[link.target] = link.label;
+      }
+    });
+  }
+  
+  return nodeCharMap;
+};
+
 export const ACAutomaton = ({ step }) => {
   if (!step.layout) return null;
   const { nodes, links, width, height } = step.layout;
   
+  // Determine which nodes and links to show based on phase
+  const phase = step.phase || 'search';
+  const isBuilding = phase === 'build';
+  
+  // Build character label map for nodes
+  const trieForMapping = step.trie;
+  const nodeCharMap = buildNodeCharMap(trieForMapping, links);
+  
+  // During building, only show nodes/links that exist in current trie state
+  const visibleNodes = isBuilding && step.trie 
+    ? nodes.filter(n => step.trie[n.id] !== undefined)
+    : nodes;
+  
+  // Build visible links based on current trie state
+  const visibleLinks = [];
+  if (isBuilding && step.trie) {
+    // Add transition links (next)
+    step.trie.forEach((node, id) => {
+      Object.entries(node.next).forEach(([char, targetId]) => {
+        if (step.trie[targetId] !== undefined) {
+          visibleLinks.push({ source: id, target: targetId, label: char, type: 'next' });
+        }
+      });
+    });
+    // Add failure links
+    step.trie.forEach((node, id) => {
+      if (node.fail !== undefined && node.fail !== 0 && id !== 0) {
+        visibleLinks.push({ source: id, target: node.fail, type: 'fail', label: '' });
+      }
+    });
+  } else {
+    // Search phase: show all links
+    visibleLinks.push(...links);
+  }
+  
   // Find active node coordinates
-  const activeNodeObj = nodes.find(n => n.id === step.node);
+  const activeNodeObj = visibleNodes.find(n => n.id === step.node);
   
   // Calculate tooltip position - show above if node is low enough, below if near top
   const tooltipWidth = 240;
@@ -14,13 +74,34 @@ export const ACAutomaton = ({ step }) => {
   // Determine tooltip position: if node is in top 80px, show tooltip below
   const showTooltipBelow = activeNodeObj && activeNodeObj.y < 80;
   const tooltipYOffset = showTooltipBelow ? 50 : -50;
+  
+  // Determine if we're creating a new node or link
+  const isCreatingNode = isBuilding && (step.type === 'insert_create' || step.type === 'build_fail_set');
+  const newNodeId = step.newNode !== undefined ? step.newNode : null;
+  const isCreatingLink = isBuilding && (
+    step.type === 'insert_move' || 
+    step.type === 'build_fail_set' || 
+    step.type === 'build_fail_optimize'
+  );
 
   return (
     <div className="mt-4">
       <div className="flex justify-between items-end mb-2">
         <div>
-          <h3 className="font-bold text-gray-700">AC Automaton (Trie) <span className="text-sm font-normal text-gray-500 ml-1">/ AC自动机</span></h3>
-          <p className="text-xs text-gray-500">State Tree Structure with Transitions (Solid) & Fail Links (Dashed)</p>
+          <h3 className="font-bold text-gray-700">
+            AC Automaton (Trie) <span className="text-sm font-normal text-gray-500 ml-1">/ AC自动机</span>
+            {isBuilding && (
+              <span className="ml-2 text-sm font-normal text-blue-600 bg-blue-100 px-2 py-1 rounded">
+                Building Phase / 构建阶段
+              </span>
+            )}
+          </h3>
+          <p className="text-xs text-gray-500">
+            {isBuilding 
+              ? "Building Trie and Failure Links Step-by-Step / 逐步构建 Trie 和失败链接"
+              : "State Tree Structure with Transitions (Solid) & Fail Links (Dashed) / 状态树结构：实线为转移，虚线为失败链接"
+            }
+          </p>
         </div>
         {step.found && (
           <div className="bg-green-100 border border-green-400 text-green-800 px-3 py-1 rounded text-sm animate-pulse">
@@ -47,9 +128,11 @@ export const ACAutomaton = ({ step }) => {
           {/* Shift all content down to make room for tooltips at top */}
           <g transform={`translate(0, ${tooltipPadding/2})`}>
             {/* Links */}
-            {links.map((link, idx) => {
-              const source = nodes[link.source];
-              const target = nodes[link.target];
+            {visibleLinks.map((link, idx) => {
+              const sourceNode = visibleNodes.find(n => n.id === link.source);
+              const targetNode = visibleNodes.find(n => n.id === link.target);
+              if (!sourceNode || !targetNode) return null;
+              
               const isFail = link.type === 'fail';
               // Check if this is part of the active failure path
               const isActiveFailPath = step.type === 'fail' && 
@@ -58,29 +141,25 @@ export const ACAutomaton = ({ step }) => {
                 step.failPath.includes(link.target) &&
                 step.failPath.indexOf(link.source) + 1 === step.failPath.indexOf(link.target);
               
+              // Check if this link is being created in current step
+              const isNewLink = isCreatingLink && (
+                (step.type === 'insert_move' && step.currentNode === link.target && link.type === 'next' && link.label === step.char) ||
+                (step.type === 'build_fail_set' && step.childNode === link.target && step.currentNode === link.source && link.type === 'fail') ||
+                (step.type === 'build_fail_optimize' && step.currentNode === link.source && link.label === step.char && link.type === 'next')
+              );
+              
               return (
                 <g key={`link-${idx}`}>
                   <line 
-                    x1={source.x} y1={source.y} 
-                    x2={target.x} y2={target.y} 
-                    stroke={isActiveFailPath ? "#ef4444" : isFail ? "#f87171" : "#cbd5e1"} 
-                    strokeWidth={isActiveFailPath ? 3 : isFail ? 1.5 : 2}
+                    x1={sourceNode.x} y1={sourceNode.y} 
+                    x2={targetNode.x} y2={targetNode.y} 
+                    stroke={isNewLink ? "#10b981" : isActiveFailPath ? "#ef4444" : isFail ? "#f87171" : "#cbd5e1"} 
+                    strokeWidth={isNewLink ? 3 : isActiveFailPath ? 3 : isFail ? 1.5 : 2}
                     strokeDasharray={isFail ? "5,5" : "0"}
                     markerEnd={isFail ? "url(#arrowhead-fail)" : "url(#arrowhead)"}
-                    opacity={isActiveFailPath ? 1 : isFail ? 0.4 : 1}
-                    className={isActiveFailPath ? "animate-pulse" : ""}
+                    opacity={isNewLink ? 1 : isActiveFailPath ? 1 : isFail ? 0.4 : 1}
+                    className={isNewLink ? "animate-pulse" : isActiveFailPath ? "animate-pulse" : ""}
                   />
-                  {!isFail && (
-                    <text 
-                      x={(source.x + target.x) / 2} 
-                      y={(source.y + target.y) / 2 - 5} 
-                      textAnchor="middle" 
-                      className="text-xs font-bold fill-gray-400"
-                      style={{ fontSize: '10px' }}
-                    >
-                      {link.label}
-                    </text>
-                  )}
                 </g>
               )
             })}
@@ -143,28 +222,38 @@ export const ACAutomaton = ({ step }) => {
             )}
 
             {/* Nodes */}
-            {nodes.map((node) => {
-              const isFailTarget = step.prevNode !== undefined && step.trie[step.prevNode]?.fail === node.id && step.type === 'fail';
+            {visibleNodes.map((node) => {
+              const isFailTarget = step.prevNode !== undefined && step.trie && step.trie[step.prevNode]?.fail === node.id && step.type === 'fail';
+              const isNewNode = isCreatingNode && node.id === newNodeId;
+              const nodeData = step.trie && step.trie[node.id] ? step.trie[node.id] : node;
+              const output = nodeData.output || [];
+              
+              // Get character label for this node
+              const nodeLabel = nodeCharMap[node.id] || node.id.toString();
+              const isRoot = node.id === 0;
+              
               return (
                 <g key={`node-${node.id}`}>
                   <circle 
                     cx={node.x} cy={node.y} r="18" 
-                    fill={isFailTarget ? "#fee2e2" : "#fff"}
-                    stroke={isFailTarget ? "#ef4444" : "#cbd5e1"}
-                    strokeWidth="2"
+                    fill={isNewNode ? "#d1fae5" : isFailTarget ? "#fee2e2" : isRoot ? "#e0e7ff" : "#fff"}
+                    stroke={isNewNode ? "#10b981" : isFailTarget ? "#ef4444" : isRoot ? "#6366f1" : "#cbd5e1"}
+                    strokeWidth={isNewNode ? 3 : isRoot ? 2.5 : 2}
+                    className={isNewNode ? "animate-pulse" : ""}
                   />
                   <text 
                     x={node.x} y={node.y} 
                     dy="5" textAnchor="middle" 
-                    fill="#1f2937"
-                    fontSize="12"
+                    fill={isNewNode ? "#059669" : isRoot ? "#4338ca" : "#1f2937"}
+                    fontSize={isRoot ? "10" : "13"}
                     fontWeight="bold"
+                    fontFamily="monospace"
                   >
-                    {node.id}
+                    {nodeLabel}
                   </text>
-                  {node.output.length > 0 && (
+                  {output.length > 0 && (
                     <text x={node.x} y={node.y + 35} textAnchor="middle" fontSize="10" fill="#059669" fontWeight="bold">
-                      [{node.output.join(',')}]
+                      [{output.join(',')}]
                     </text>
                   )}
                 </g>
@@ -251,7 +340,7 @@ export const ACAutomaton = ({ step }) => {
       </div>
       
       <div className="bg-gray-50 p-2 mt-2 rounded border text-xs font-mono text-gray-500 flex justify-between">
-        <span>Current State: {step.node}</span>
+        <span>Current State: {nodeCharMap[step.node] || step.node} {step.node !== undefined && step.node !== 0 && `(id: ${step.node})`}</span>
         <span>Processing Char: {step.char || '-'}</span>
       </div>
     </div>

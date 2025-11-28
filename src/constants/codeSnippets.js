@@ -79,8 +79,69 @@ export const RK_CODE = [
   { line: 32, code: "}", phase: "search" },
 ];
 
-// AC Algorithm Code (from textbook)
-export const AC_CODE = [
+// AC Algorithm Code - Node Structure
+export const AC_NODE_CODE = [
+  { line: 1, code: "// The fundamental node structure", phase: "build" },
+  { line: 2, code: "// 基础节点结构", phase: "build" },
+  { line: 3, code: "typedef struct node {", phase: "build" },
+  { line: 4, code: "    int cnt;", phase: "build" },
+  { line: 5, code: "    node* fail;", phase: "build" },
+  { line: 6, code: "    node* go[dsize];", phase: "build" },
+  { line: 7, code: "    vector<string> output;", phase: "build" },
+  { line: 8, code: "} tnode;", phase: "build" },
+];
+
+// AC Algorithm Code - Insert Function
+export const AC_INSERT_CODE = [
+  { line: 1, code: "// Function to insert a pattern into the trie", phase: "build" },
+  { line: 2, code: "// 将一个模式串插入 Trie 的函数", phase: "build" },
+  { line: 3, code: "void insert(const string& word) {", phase: "build" },
+  { line: 4, code: "    tnode* cur = root;", phase: "build" },
+  { line: 5, code: "    for(int i=0; i < word.length(); ++i) {", phase: "build" },
+  { line: 6, code: "        if (!cur->go[idx[word[i]]])", phase: "build" },
+  { line: 7, code: "            cur->go[idx[word[i]]] = newnode();", phase: "build" },
+  { line: 8, code: "        cur = cur->go[idx[word[i]]];", phase: "build" },
+  { line: 9, code: "    }", phase: "build" },
+  { line: 10, code: "    cur->output.push_back(word);", phase: "build" },
+  { line: 11, code: "    cur->cnt += 1;", phase: "build" },
+  { line: 12, code: "}", phase: "build" },
+];
+
+// AC Algorithm Code - Build Failure Function
+export const AC_BUILD_FAILURE_CODE = [
+  { line: 1, code: "// 构建失败指针", phase: "build" },
+  { line: 2, code: "void build_failure() {", phase: "build" },
+  { line: 3, code: "    queue<tnode*> q;", phase: "build" },
+  { line: 4, code: "    root->fail = NULL;", phase: "build" },
+  { line: 5, code: "    q.push(root);", phase: "build" },
+  { line: 6, code: "", phase: "build" },
+  { line: 7, code: "    while(!q.empty()) {", phase: "build" },
+  { line: 8, code: "        tnode* cur = q.front(); q.pop();", phase: "build" },
+  { line: 9, code: "", phase: "build" },
+  { line: 10, code: "        for(int i=0; i < dsize; ++i) {", phase: "build" },
+  { line: 11, code: "            if(cur->go[i]) {", phase: "build" },
+  { line: 12, code: "                // State exists, find its failure link", phase: "build" },
+  { line: 13, code: "                tnode* p = cur->fail;", phase: "build" },
+  { line: 14, code: "                // Traverse failure links of parent to find fallback", phase: "build" },
+  { line: 15, code: "                while(p && !p->go[i]) p = p->fail;", phase: "build" },
+  { line: 16, code: "                if(p)", phase: "build" },
+  { line: 17, code: "                    cur->go[i]->fail = p->go[i];", phase: "build" },
+  { line: 18, code: "                else", phase: "build" },
+  { line: 19, code: "                    cur->go[i]->fail = root;", phase: "build" },
+  { line: 20, code: "                q.push(cur->go[i]);", phase: "build" },
+  { line: 21, code: "            } else {", phase: "build" },
+  { line: 22, code: "                // State does not exist, fill it in for faster search", phase: "build" },
+  { line: 23, code: "                // This is a key optimization: pre-computing transitions", phase: "build" },
+  { line: 24, code: "                // 这是一个关键优化:预计算状态转换", phase: "build" },
+  { line: 25, code: "                cur->go[i] = (cur == root) ? root : cur->fail->go[i];", phase: "build" },
+  { line: 26, code: "            }", phase: "build" },
+  { line: 27, code: "        }", phase: "build" },
+  { line: 28, code: "    }", phase: "build" },
+  { line: 29, code: "}", phase: "build" },
+];
+
+// AC Algorithm Code - Search Function (from textbook)
+export const AC_SEARCH_CODE = [
   { line: 1, code: "int mult_search(const string& text) {", phase: "search" },
   { line: 2, code: "    int cnt = 0;", phase: "search" },
   { line: 3, code: "    tnode *cur = root;", phase: "search" },
@@ -99,6 +160,9 @@ export const AC_CODE = [
   { line: 16, code: "    return cnt;", phase: "search" },
   { line: 17, code: "}", phase: "search" },
 ];
+
+// Legacy AC_CODE for backward compatibility
+export const AC_CODE = AC_SEARCH_CODE;
 
 // Map step types to code lines with context
 export const getCodeLineForStep = (algo, stepType, step) => {
@@ -130,13 +194,69 @@ export const getCodeLineForStep = (algo, stepType, step) => {
   }
   
   if (algo === 'ac') {
-    if (stepType === 'input') return 5;
-    if (stepType === 'goto') return 8;
-    if (stepType === 'match') return 10;
-    if (stepType === 'fail') return 7;
+    // Check if we're in building phase
+    const isBuilding = step && step.phase === 'build';
+    
+    if (isBuilding) {
+      // Building phase - line numbers in combined code
+      // Node struct: lines 1-8, Insert: lines 10-21, Build failure: lines 23-51
+      if (stepType === 'build_init') return 1; // Start of node struct
+      if (stepType === 'insert_start') return 10; // insert function start
+      if (stepType === 'insert_char') return 12; // for loop
+      if (stepType === 'insert_check') return 13; // if check
+      if (stepType === 'insert_create') return 14; // newnode()
+      if (stepType === 'insert_move') return 15; // cur = cur->go[...]
+      if (stepType === 'insert_output') return 17; // output.push_back
+      if (stepType === 'build_fail_init') return 23; // build_failure start
+      if (stepType === 'build_fail_queue') return 25; // q.push(root)
+      if (stepType === 'build_fail_loop') return 27; // while loop
+      if (stepType === 'build_fail_check') return 28; // if(cur->go[i])
+      if (stepType === 'build_fail_traverse') return 32; // while(p && !p->go[i])
+      if (stepType === 'build_fail_set') return 34; // cur->go[i]->fail = ...
+      if (stepType === 'build_fail_optimize') return 42; // else optimization
+      if (stepType === 'build_complete') return 51; // end of function
+    } else {
+      // Search phase
+      if (stepType === 'input') return 5;
+      if (stepType === 'goto') return 8;
+      if (stepType === 'match') return 10;
+      if (stepType === 'fail') return 7;
+    }
     return null;
   }
   
   return null;
 };
 
+// Get appropriate AC code based on phase
+export const getACCode = (phase) => {
+  if (phase === 'build') {
+    // Return combined code for building phase
+    let lineNum = 1;
+    const combined = [];
+    
+    // Add node struct code
+    AC_NODE_CODE.forEach(line => {
+      combined.push({ ...line, line: lineNum++ });
+    });
+    
+    // Add blank line
+    combined.push({ line: lineNum++, code: "", phase: "build" });
+    
+    // Add insert function code
+    AC_INSERT_CODE.forEach(line => {
+      combined.push({ ...line, line: lineNum++ });
+    });
+    
+    // Add blank line
+    combined.push({ line: lineNum++, code: "", phase: "build" });
+    
+    // Add build_failure function code
+    AC_BUILD_FAILURE_CODE.forEach(line => {
+      combined.push({ ...line, line: lineNum++ });
+    });
+    
+    return combined;
+  }
+  return AC_SEARCH_CODE;
+};

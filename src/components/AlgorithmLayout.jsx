@@ -2,7 +2,7 @@ import React from 'react';
 import { Info } from 'lucide-react';
 import { Card } from './Card';
 import { ControlButton } from './ControlButton';
-import { Play, Pause, SkipForward, SkipBack, RotateCcw } from 'lucide-react';
+import { Play, Pause, SkipForward, SkipBack, RotateCcw, Search } from 'lucide-react';
 
 export const AlgorithmLayout = ({ 
   title, 
@@ -14,6 +14,17 @@ export const AlgorithmLayout = ({
   setCurrentStep,
   children 
 }) => {
+  // Find the first search phase step
+  const firstSearchStepIndex = steps.findIndex(s => s.phase === 'search');
+  const isInBuildingPhase = step && (step.phase === 'build' || (firstSearchStepIndex !== -1 && currentStep < firstSearchStepIndex));
+  
+  const jumpToSearch = () => {
+    if (firstSearchStepIndex !== -1) {
+      setIsPlaying(false);
+      setCurrentStep(firstSearchStepIndex);
+    }
+  };
+
   return (
     <Card 
       title={
@@ -26,6 +37,17 @@ export const AlgorithmLayout = ({
               <ControlButton icon={SkipBack} onClick={() => { setIsPlaying(false); setCurrentStep(Math.max(0, currentStep - 1)); }} disabled={currentStep === 0} />
               <ControlButton icon={isPlaying ? Pause : Play} onClick={() => setIsPlaying(!isPlaying)} />
               <ControlButton icon={SkipForward} onClick={() => { setIsPlaying(false); setCurrentStep(Math.min(steps.length - 1, currentStep + 1)); }} disabled={currentStep === steps.length - 1} />
+              {/* Jump to Search button - only show during building phase */}
+              {isInBuildingPhase && firstSearchStepIndex !== -1 && (
+                <button
+                  onClick={jumpToSearch}
+                  className="px-3 py-1.5 ml-1 text-xs font-medium text-white bg-green-600 hover:bg-green-700 active:bg-green-800 rounded-full transition-colors flex items-center gap-1.5"
+                  title="Jump to Search Phase / 跳转到搜索阶段"
+                >
+                  <Search size={14} />
+                  <span className="hidden sm:inline">Jump to Search</span>
+                </button>
+              )}
             </div>
             <span className="text-xs text-gray-300 font-mono">Step {currentStep + 1} / {steps.length}</span>
           </div>

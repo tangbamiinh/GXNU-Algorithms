@@ -7,7 +7,7 @@ import { renderHighlightText } from './components/TextHighlight';
 import { AlgorithmLayout } from './components/AlgorithmLayout';
 import PDFViewer from './components/PDFViewer';
 import { generateNaiveSteps, generateKMPSteps, generateRKSteps, generateACSteps } from './utils/algorithmGenerators';
-import { getCodeLineForStep, NAIVE_CODE, KMP_CODE, RK_CODE, AC_CODE } from './constants/codeSnippets';
+import { getCodeLineForStep, NAIVE_CODE, KMP_CODE, RK_CODE, AC_CODE, getACCode } from './constants/codeSnippets';
 import { hasSlides, getSlideInfo } from './constants/slides';
 import { FileText } from 'lucide-react';
 import { NaiveMatchHistory } from './components/visualizations/Naive/NaiveMatchHistory';
@@ -566,11 +566,11 @@ const App = () => {
                   />
                   <div className="flex-1 min-h-0 overflow-hidden">
                     <CodeViewer 
-                      code={AC_CODE}
+                      code={step.phase === 'build' ? getACCode('build') : AC_CODE}
                       highlightedLine={getCodeLineForStep('ac', step.type, step)}
                       stepType={step.type}
-                      fileName="mult_search.cpp"
-                      algorithmName="Aho-Corasick Algorithm"
+                      fileName={step.phase === 'build' ? "aho_corasick_build.cpp" : "mult_search.cpp"}
+                      algorithmName={step.phase === 'build' ? "Aho-Corasick: Building Automaton" : "Aho-Corasick Algorithm"}
                     />
                   </div>
                 </div>

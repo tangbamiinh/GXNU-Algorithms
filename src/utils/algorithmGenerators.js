@@ -332,45 +332,313 @@ export const generateACSteps = (text, patternsInput) => {
   const patterns = patternsInput.split(',').map(s => s.trim()).filter(s => s.length > 0);
   if (patterns.length === 0) return steps;
 
-  // Build Trie
+  // Initialize empty trie with root
   const trie = [{ next: {}, fail: 0, output: [] }];
   
-  patterns.forEach((pat, patIdx) => {
-    let u = 0;
-    for (let char of pat) {
-      if (!trie[u].next[char]) {
-        trie[u].next[char] = trie.length;
-        trie.push({ next: {}, fail: 0, output: [] });
-      }
-      u = trie[u].next[char];
+  // Helper to calculate layout
+  const getLayout = () => calculateTrieLayout(trie);
+
+  // Step 1: Initial state
+  steps.push({
+    type: 'build_init',
+    phase: 'build',
+    trie: JSON.parse(JSON.stringify(trie)),
+    layout: getLayout(),
+    node: 0,
+    desc: { 
+      en: "Initialize AC Automaton. Starting with root node.", 
+      zh: "初始化 AC 自动机。从根节点开始。" 
     }
-    trie[u].output.push(pat);
   });
 
-  // Build Failure Links
+  // Step 2: Build Trie - Insert patterns one by one
+  patterns.forEach((pat, patIdx) => {
+    let u = 0;
+    
+    steps.push({
+      type: 'insert_start',
+      phase: 'build',
+      trie: JSON.parse(JSON.stringify(trie)),
+      layout: getLayout(),
+      pattern: pat,
+      patternIndex: patIdx,
+      currentNode: u,
+      charIndex: -1,
+      desc: { 
+        en: `Inserting pattern "${pat}" into trie.`, 
+        zh: `将模式串 "${pat}" 插入 Trie。` 
+      }
+    });
+
+    for (let charIdx = 0; charIdx < pat.length; charIdx++) {
+      const char = pat[charIdx];
+      
+      steps.push({
+        type: 'insert_char',
+        phase: 'build',
+        trie: JSON.parse(JSON.stringify(trie)),
+        layout: getLayout(),
+        pattern: pat,
+        patternIndex: patIdx,
+        currentNode: u,
+        charIndex: charIdx,
+        char: char,
+        desc: { 
+          en: `Processing character '${char}' at position ${charIdx} of pattern "${pat}".`, 
+          zh: `处理模式串 "${pat}" 位置 ${charIdx} 的字符 '${char}'。` 
+        }
+      });
+
+      if (!trie[u].next[char]) {
+        steps.push({
+          type: 'insert_check',
+          phase: 'build',
+          trie: JSON.parse(JSON.stringify(trie)),
+          layout: getLayout(),
+          pattern: pat,
+          patternIndex: patIdx,
+          currentNode: u,
+          charIndex: charIdx,
+          char: char,
+          desc: { 
+            en: `No transition for '${char}' from state ${u}. Creating new node.`, 
+            zh: `状态 ${u} 没有 '${char}' 的转移。创建新节点。` 
+          }
+        });
+
+        trie[u].next[char] = trie.length;
+        trie.push({ next: {}, fail: 0, output: [] });
+        
+        steps.push({
+          type: 'insert_create',
+          phase: 'build',
+          trie: JSON.parse(JSON.stringify(trie)),
+          layout: getLayout(),
+          pattern: pat,
+          patternIndex: patIdx,
+          currentNode: u,
+          newNode: trie.length - 1,
+          charIndex: charIdx,
+          char: char,
+          desc: { 
+            en: `Created new state ${trie.length - 1} for transition '${char}' from state ${u}.`, 
+            zh: `为状态 ${u} 的转移 '${char}' 创建新状态 ${trie.length - 1}。` 
+          }
+        });
+      }
+
+      const prevNode = u;
+      u = trie[u].next[char];
+      
+      steps.push({
+        type: 'insert_move',
+        phase: 'build',
+        trie: JSON.parse(JSON.stringify(trie)),
+        layout: getLayout(),
+        pattern: pat,
+        patternIndex: patIdx,
+        prevNode: prevNode,
+        currentNode: u,
+        charIndex: charIdx,
+        char: char,
+        desc: { 
+          en: `Move from state ${prevNode} to state ${u} via transition '${char}'.`, 
+          zh: `通过转移 '${char}' 从状态 ${prevNode} 移动到状态 ${u}。` 
+        }
+      });
+    }
+
+    trie[u].output.push(pat);
+    
+    steps.push({
+      type: 'insert_output',
+      phase: 'build',
+      trie: JSON.parse(JSON.stringify(trie)),
+      layout: getLayout(),
+      pattern: pat,
+      patternIndex: patIdx,
+      currentNode: u,
+      desc: { 
+        en: `Pattern "${pat}" inserted. State ${u} now has output: [${trie[u].output.join(', ')}].`, 
+        zh: `模式串 "${pat}" 已插入。状态 ${u} 现在有输出：[${trie[u].output.join(', ')}]。` 
+      }
+    });
+  });
+
+  // Step 3: Build Failure Links using BFS
+  steps.push({
+    type: 'build_fail_init',
+    phase: 'build',
+    trie: JSON.parse(JSON.stringify(trie)),
+    layout: getLayout(),
+    desc: { 
+      en: "Starting to build failure links. Initialize root's fail to NULL.", 
+      zh: "开始构建失败链接。将根的失败指针初始化为 NULL。" 
+    }
+  });
+
   const queue = [];
   for (let char in trie[0].next) {
     const v = trie[0].next[char];
     trie[v].fail = 0;
     queue.push(v);
+    
+    steps.push({
+      type: 'build_fail_queue',
+      phase: 'build',
+      trie: JSON.parse(JSON.stringify(trie)),
+      layout: getLayout(),
+      currentNode: v,
+      parentNode: 0,
+      char: char,
+      desc: { 
+        en: `Set failure link for state ${v} (child of root via '${char}') to root (0).`, 
+        zh: `将状态 ${v}（通过 '${char}' 从根的子节点）的失败链接设置为根（0）。` 
+      }
+    });
   }
 
   while (queue.length > 0) {
     const u = queue.shift();
-    for (let char in trie[u].next) {
-      const v = trie[u].next[char];
-      let f = trie[u].fail;
-      while (f > 0 && !trie[f].next[char]) {
-        f = trie[f].fail;
+    
+    steps.push({
+      type: 'build_fail_loop',
+      phase: 'build',
+      trie: JSON.parse(JSON.stringify(trie)),
+      layout: getLayout(),
+      currentNode: u,
+      queueLength: queue.length,
+      desc: { 
+        en: `Processing state ${u} from queue. Building failure links for its children.`, 
+        zh: `处理队列中的状态 ${u}。为其子节点构建失败链接。` 
       }
-      trie[v].fail = trie[f].next[char] || 0;
-      trie[v].output = [...trie[v].output, ...trie[trie[v].fail].output];
-      queue.push(v);
+    });
+
+    // Get all possible characters (dsize simulation - using all chars seen so far)
+    const allChars = new Set();
+    Object.keys(trie[u].next).forEach(c => allChars.add(c));
+    // Also check failure link path for optimization
+    let tempF = trie[u].fail;
+    while (tempF > 0) {
+      Object.keys(trie[tempF].next).forEach(c => allChars.add(c));
+      tempF = trie[tempF].fail;
+    }
+
+    for (let char of allChars) {
+      const hasTransition = !!trie[u].next[char];
+      
+      steps.push({
+        type: 'build_fail_check',
+        phase: 'build',
+        trie: JSON.parse(JSON.stringify(trie)),
+        layout: getLayout(),
+        currentNode: u,
+        char: char,
+        hasTransition: hasTransition,
+        desc: { 
+          en: `Checking transition '${char}' from state ${u}. ${hasTransition ? 'Transition exists.' : 'Transition does not exist - will optimize.'}`, 
+          zh: `检查状态 ${u} 的转移 '${char}'。${hasTransition ? '转移存在。' : '转移不存在 - 将进行优化。'}` 
+        }
+      });
+
+      if (hasTransition) {
+        const v = trie[u].next[char];
+        let f = trie[u].fail;
+        
+        steps.push({
+          type: 'build_fail_traverse',
+          phase: 'build',
+          trie: JSON.parse(JSON.stringify(trie)),
+          layout: getLayout(),
+          currentNode: u,
+          childNode: v,
+          char: char,
+          failCandidate: f,
+          desc: { 
+            en: `State ${v} exists. Traverse failure links from parent ${u}'s fail (${f}) to find fallback.`, 
+            zh: `状态 ${v} 存在。从父节点 ${u} 的失败链接（${f}）遍历失败链接以找到后备。` 
+          }
+        });
+
+        while (f > 0 && !trie[f].next[char]) {
+          const prevF = f;
+          f = trie[f].fail;
+          
+          steps.push({
+            type: 'build_fail_traverse',
+            phase: 'build',
+            trie: JSON.parse(JSON.stringify(trie)),
+            layout: getLayout(),
+            currentNode: u,
+            childNode: v,
+            char: char,
+            failCandidate: f,
+            prevFailCandidate: prevF,
+            desc: { 
+              en: `No transition '${char}' from fail candidate ${prevF}. Follow fail link to ${f}.`, 
+              zh: `失败候选 ${prevF} 没有转移 '${char}'。跟随失败链接到 ${f}。` 
+            }
+          });
+        }
+
+        const failTarget = trie[f].next[char] || 0;
+        trie[v].fail = failTarget;
+        trie[v].output = [...trie[v].output, ...trie[failTarget].output];
+        
+        steps.push({
+          type: 'build_fail_set',
+          phase: 'build',
+          trie: JSON.parse(JSON.stringify(trie)),
+          layout: getLayout(),
+          currentNode: u,
+          childNode: v,
+          char: char,
+          failTarget: failTarget,
+          desc: { 
+            en: `Set failure link for state ${v} to ${failTarget}. Output: [${trie[v].output.join(', ')}].`, 
+            zh: `将状态 ${v} 的失败链接设置为 ${failTarget}。输出：[${trie[v].output.join(', ')}]。` 
+          }
+        });
+
+        queue.push(v);
+      } else {
+        // Optimization: pre-compute transition
+        const optimizedTarget = u === 0 ? 0 : (trie[trie[u].fail].next[char] || 0);
+        trie[u].next[char] = optimizedTarget;
+        
+        steps.push({
+          type: 'build_fail_optimize',
+          phase: 'build',
+          trie: JSON.parse(JSON.stringify(trie)),
+          layout: getLayout(),
+          currentNode: u,
+          char: char,
+          optimizedTarget: optimizedTarget,
+          desc: { 
+            en: `Optimization: Pre-compute transition '${char}' from state ${u} to ${optimizedTarget} (via fail link).`, 
+            zh: `优化：预计算状态 ${u} 到 ${optimizedTarget} 的转移 '${char}'（通过失败链接）。` 
+          }
+        });
+      }
     }
   }
 
-  const layout = calculateTrieLayout(trie);
+  const layout = getLayout();
 
+  // Transition step: Building complete, ready to search
+  steps.push({
+    type: 'build_complete',
+    phase: 'build',
+    trie: JSON.parse(JSON.stringify(trie)),
+    layout: layout,
+    node: 0,
+    desc: { 
+      en: "AC Automaton construction complete! All patterns inserted and failure links built. Ready to search.", 
+      zh: "AC 自动机构建完成！所有模式已插入，失败链接已构建。准备搜索。" 
+    }
+  });
+
+  // Step 4: Search phase
   let u = 0;
   const allMatches = []; // Track all matches found so far
   const stateHistory = [0]; // Track state transition history
@@ -378,7 +646,9 @@ export const generateACSteps = (text, patternsInput) => {
   
   steps.push({
     type: 'init',
-    trie, layout,
+    phase: 'search',
+    trie: JSON.parse(JSON.stringify(trie)),
+    layout: layout,
     node: 0,
     i: -1,
     matches: [],
@@ -392,7 +662,11 @@ export const generateACSteps = (text, patternsInput) => {
     
     steps.push({
         type: 'input',
-        trie, layout, node: u, i,
+        phase: 'search',
+        trie: JSON.parse(JSON.stringify(trie)), 
+        layout: layout, 
+        node: u, 
+        i,
         char,
         matches: [...allMatches],
         stateHistory: [...stateHistory],
@@ -415,7 +689,11 @@ export const generateACSteps = (text, patternsInput) => {
       stateHistory.push(u);
       steps.push({
         type: 'fail',
-        trie, layout, node: u, i,
+        phase: 'search',
+        trie: JSON.parse(JSON.stringify(trie)), 
+        layout: layout, 
+        node: u, 
+        i,
         prevNode: prev,
         failPath: failPath,
         matches: [...allMatches],
@@ -431,7 +709,11 @@ export const generateACSteps = (text, patternsInput) => {
       stateHistory.push(u);
       steps.push({
         type: 'goto',
-        trie, layout, node: u, i,
+        phase: 'search',
+        trie: JSON.parse(JSON.stringify(trie)), 
+        layout: layout, 
+        node: u, 
+        i,
         prevNode: prev,
         transitionChar: char,
         matches: [...allMatches],
@@ -455,7 +737,11 @@ export const generateACSteps = (text, patternsInput) => {
       
       steps.push({
         type: 'match',
-        trie, layout, node: u, i,
+        phase: 'search',
+        trie: JSON.parse(JSON.stringify(trie)), 
+        layout: layout, 
+        node: u, 
+        i,
         found: trie[u].output,
         newMatches: newMatches,
         matches: [...allMatches],
