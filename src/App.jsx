@@ -130,8 +130,8 @@ const App = () => {
             <p className="text-gray-400 text-sm">字符串搜索与模式匹配机制</p>
           </div>
           
-          <div className="flex gap-2 mt-4 md:mt-0 items-center">
-            <div className="flex gap-2 overflow-x-auto">
+          <div className="flex gap-2 mt-4 md:mt-0 items-center flex-wrap">
+            <div className="flex gap-2 flex-wrap">
               {['naive', 'kmp', 'rk', 'ac'].map(key => (
                 <button
                   key={key}
@@ -139,7 +139,7 @@ const App = () => {
                   className={`px-4 py-2 rounded-lg font-medium transition-all duration-300 whitespace-nowrap flex flex-col items-center ${
                     algo === key 
                       ? 'bg-blue-600 text-white shadow-md transform scale-105' 
-                      : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
+                      : 'bg-white text-gray-600 hover:bg-gray-200 border border-gray-200'
                   }`}
                 >
                   <span>
@@ -160,7 +160,7 @@ const App = () => {
             {hasSlides(algo) && (
               <button
                 onClick={() => setShowSlides(true)}
-                className="ml-2 px-4 py-2 rounded-lg font-medium transition-all duration-300 bg-green-600 text-white hover:bg-green-700 shadow-md flex items-center gap-2 whitespace-nowrap"
+                className="px-4 py-2 rounded-lg font-medium transition-all duration-300 bg-green-600 text-white hover:bg-green-700 shadow-md flex items-center gap-2 whitespace-nowrap"
                 title="View Slides / 查看幻灯片"
               >
                 <FileText className="w-4 h-4" />
