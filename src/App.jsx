@@ -5,8 +5,11 @@ import { VizTitle } from './components/VizTitle';
 import { CodeViewer } from './components/CodeViewer';
 import { renderHighlightText } from './components/TextHighlight';
 import { AlgorithmLayout } from './components/AlgorithmLayout';
+import PDFViewer from './components/PDFViewer';
 import { generateNaiveSteps, generateKMPSteps, generateRKSteps, generateACSteps } from './utils/algorithmGenerators';
 import { getCodeLineForStep, NAIVE_CODE, KMP_CODE, RK_CODE, AC_CODE } from './constants/codeSnippets';
+import { hasSlides, getSlideInfo } from './constants/slides';
+import { FileText } from 'lucide-react';
 import { NaiveMatchHistory } from './components/visualizations/Naive/NaiveMatchHistory';
 import { NaiveStatistics } from './components/visualizations/Naive/NaiveStatistics';
 import { KMPNextTable } from './components/visualizations/KMP/KMPNextTable';
@@ -37,6 +40,7 @@ const App = () => {
   const [currentStep, setCurrentStep] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [speed, setSpeed] = useState(1000);
+  const [showSlides, setShowSlides] = useState(false);
 
   const timerRef = useRef(null);
   const textInitializedRef = useRef(false);
@@ -126,31 +130,43 @@ const App = () => {
             <p className="text-gray-400 text-sm">字符串搜索与模式匹配机制</p>
           </div>
           
-          <div className="flex gap-2 mt-4 md:mt-0 overflow-x-auto">
-            {['naive', 'kmp', 'rk', 'ac'].map(key => (
+          <div className="flex gap-2 mt-4 md:mt-0 items-center">
+            <div className="flex gap-2 overflow-x-auto">
+              {['naive', 'kmp', 'rk', 'ac'].map(key => (
+                <button
+                  key={key}
+                  onClick={() => setAlgo(key)}
+                  className={`px-4 py-2 rounded-lg font-medium transition-all duration-300 whitespace-nowrap flex flex-col items-center ${
+                    algo === key 
+                      ? 'bg-blue-600 text-white shadow-md transform scale-105' 
+                      : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
+                  }`}
+                >
+                  <span>
+                    {key === 'naive' && 'Naive'}
+                    {key === 'kmp' && 'KMP'}
+                    {key === 'rk' && 'Rabin-Karp'}
+                    {key === 'ac' && 'Aho-Corasick'}
+                  </span>
+                  <span className="text-[10px] opacity-80 font-normal">
+                    {key === 'naive' && '朴素算法'}
+                    {key === 'kmp' && 'KMP算法'}
+                    {key === 'rk' && 'RK算法'}
+                    {key === 'ac' && 'AC自动机'}
+                  </span>
+                </button>
+              ))}
+            </div>
+            {hasSlides(algo) && (
               <button
-                key={key}
-                onClick={() => setAlgo(key)}
-                className={`px-4 py-2 rounded-lg font-medium transition-all duration-300 whitespace-nowrap flex flex-col items-center ${
-                  algo === key 
-                    ? 'bg-blue-600 text-white shadow-md transform scale-105' 
-                    : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
-                }`}
+                onClick={() => setShowSlides(true)}
+                className="ml-2 px-4 py-2 rounded-lg font-medium transition-all duration-300 bg-green-600 text-white hover:bg-green-700 shadow-md flex items-center gap-2 whitespace-nowrap"
+                title="View Slides / 查看幻灯片"
               >
-                <span>
-                  {key === 'naive' && 'Naive'}
-                  {key === 'kmp' && 'KMP'}
-                  {key === 'rk' && 'Rabin-Karp'}
-                  {key === 'ac' && 'Aho-Corasick'}
-                </span>
-                <span className="text-[10px] opacity-80 font-normal">
-                  {key === 'naive' && '朴素算法'}
-                  {key === 'kmp' && 'KMP算法'}
-                  {key === 'rk' && 'RK算法'}
-                  {key === 'ac' && 'AC自动机'}
-                </span>
+                <FileText className="w-4 h-4" />
+                <span className="hidden sm:inline">Slides / 幻灯片</span>
               </button>
-            ))}
+            )}
           </div>
         </header>
 
@@ -498,6 +514,15 @@ const App = () => {
               </div>
             </div>
           </AlgorithmLayout>
+        )}
+
+        {/* PDF Slides Viewer */}
+        {showSlides && hasSlides(algo) && (
+          <PDFViewer
+            pdfPath={getSlideInfo(algo).path}
+            title={`${getSlideInfo(algo).title} / ${getSlideInfo(algo).titleZh}`}
+            onClose={() => setShowSlides(false)}
+          />
         )}
       </div>
     </div>
