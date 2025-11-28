@@ -41,7 +41,7 @@ export const AlgorithmLayout = ({
               {isInBuildingPhase && firstSearchStepIndex !== -1 && (
                 <button
                   onClick={jumpToSearch}
-                  className="px-3 py-1.5 ml-1 text-xs font-medium text-white bg-green-600 hover:bg-green-700 active:bg-green-800 rounded-full transition-colors flex items-center gap-1.5"
+                  className="px-3 py-1.5 ml-1 mr-2 text-xs font-medium text-white bg-green-600 hover:bg-green-700 active:bg-green-800 rounded-full transition-colors flex items-center gap-1.5"
                   title="Jump to Search Phase / 跳转到搜索阶段"
                 >
                   <Search size={14} />
