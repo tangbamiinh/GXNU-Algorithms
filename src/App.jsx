@@ -238,14 +238,35 @@ const App = () => {
           >
             <div className="mb-3 flex-shrink-0">
               <div className="mb-2">
-                <VizTitle title="Visualization / 可视化" />
+                <VizTitle 
+                  title="Visualization / 可视化"
+                  tooltip={{
+                    title: "Algorithm Visualization",
+                    description: "Shows the pattern window sliding over the text. Each position is checked character by character.",
+                    zh: "显示模式窗口在文本上滑动。每个位置都逐字符检查。"
+                  }}
+                />
               </div>
               <div className="mb-3">
-                <VizTitle title="Text Stream / 文本流" />
+                <VizTitle 
+                  title="Text Stream / 文本流"
+                  tooltip={{
+                    title: "Text Stream",
+                    description: "The input text being processed. The highlighted character shows the current position being examined.",
+                    zh: "正在处理的输入文本。高亮字符显示当前正在检查的位置。"
+                  }}
+                />
                 {renderHighlightText(text, step.i !== undefined ? [step.i] : [], 'bg-blue-200 border-blue-400', step.matches || [])}
               </div>
               <div className="mb-3">
-                <VizTitle title="Pattern Window / 模式窗口" />
+                <VizTitle 
+                  title="Pattern Window / 模式窗口"
+                  tooltip={{
+                    title: "Pattern Window",
+                    description: "Shows the pattern aligned with the current text position. The pattern slides over the text as the algorithm progresses.",
+                    zh: "显示与当前文本位置对齐的模式。模式在算法进行时在文本上滑动。"
+                  }}
+                />
                 <div className="relative h-20">
                   <div style={{ transform: `translateX(${(step.i || 0) * 36}px)` }} className="transition-transform duration-500 absolute left-0 top-0">
                     {renderHighlightText(pattern, step.j !== undefined ? [step.j] : [], 'bg-orange-200 border-orange-400')}
@@ -256,7 +277,14 @@ const App = () => {
             <div className="border-t pt-3">
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 mb-3">
                 <div className="lg:col-span-4 flex flex-col min-h-0">
-                  <VizTitle title="Code / 代码" />
+                  <VizTitle 
+                    title="Code / 代码"
+                    tooltip={{
+                      title: "Code Viewer",
+                      description: "Shows the executing code for the Naive string matching algorithm. The highlighted line indicates the current execution point.",
+                      zh: "显示朴素字符串匹配算法的执行代码。高亮行表示当前执行位置。"
+                    }}
+                  />
                   <div className="flex-1 min-h-0 overflow-hidden">
                     <CodeViewer 
                       code={NAIVE_CODE}
@@ -268,13 +296,27 @@ const App = () => {
                   </div>
                 </div>
                 <div className="lg:col-span-4 flex flex-col min-h-0">
-                  <VizTitle title="Match History / 匹配历史" />
+                  <VizTitle 
+                    title="Match History / 匹配历史"
+                    tooltip={{
+                      title: "Match History Timeline",
+                      description: "Chronological list of all patterns found during execution. Shows pattern name, position in text, step number, and state where match occurred.",
+                      zh: "执行过程中找到的所有模式的按时间顺序列表。显示模式名称、文本中的位置、步骤号和匹配发生的状态。"
+                    }}
+                  />
                   <div className="flex-1 min-h-0">
                     <NaiveMatchHistory matches={step.matches || []} showTitle={false} />
                   </div>
                 </div>
                 <div className="lg:col-span-4 flex flex-col min-h-0">
-                  <VizTitle title="Statistics / 统计信息" />
+                  <VizTitle 
+                    title="Statistics / 统计信息"
+                    tooltip={{
+                      title: "Match Counter & Statistics",
+                      description: "Shows total matches found, matches per pattern, and processing statistics like first/last match positions and unique pattern count.",
+                      zh: "显示找到的总匹配数、每个模式的匹配数以及处理统计信息，如第一个/最后一个匹配位置和唯一模式计数。"
+                    }}
+                  />
                   <div className="flex-1 min-h-0">
                     <NaiveStatistics 
                       comparisons={step.comparisons || 0}
@@ -302,14 +344,35 @@ const App = () => {
           >
             <div className="mb-3 flex-shrink-0">
               <div className="mb-2">
-                <VizTitle title="Visualization / 可视化" />
+                <VizTitle 
+                  title="Visualization / 可视化"
+                  tooltip={{
+                    title: "Algorithm Visualization",
+                    description: "Shows the KMP algorithm with the Next (LPS) table. Pattern index jumps are visualized when mismatches occur.",
+                    zh: "显示带有 Next (LPS) 表的 KMP 算法。当出现不匹配时可视化模式索引跳转。"
+                  }}
+                />
               </div>
               <div className="mb-3">
-                <VizTitle title="Text Stream / 文本流" />
+                <VizTitle 
+                  title="Text Stream / 文本流"
+                  tooltip={{
+                    title: "Text Stream",
+                    description: "The input text being processed. The highlighted character shows the current position being examined.",
+                    zh: "正在处理的输入文本。高亮字符显示当前正在检查的位置。"
+                  }}
+                />
                 {renderHighlightText(text, step.i !== undefined ? [step.i] : [], 'bg-blue-200 border-blue-400', step.matches || [])}
               </div>
               <div className="mb-3">
-                <VizTitle title="Pattern Window / 模式窗口" />
+                <VizTitle 
+                  title="Pattern Window / 模式窗口"
+                  tooltip={{
+                    title: "Pattern Window",
+                    description: "Shows the pattern aligned with the current text position. The pattern slides over the text as the algorithm progresses.",
+                    zh: "显示与当前文本位置对齐的模式。模式在算法进行时在文本上滑动。"
+                  }}
+                />
                 <div className="relative h-20">
                   <div style={{ transform: `translateX(${(step.i || 0) * 36}px)` }} className="transition-transform duration-500 absolute left-0 top-0">
                     {renderHighlightText(pattern, step.j !== undefined ? [step.j] : [], 'bg-orange-200 border-orange-400')}
@@ -320,7 +383,14 @@ const App = () => {
             <div className="border-t pt-3">
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 mb-3">
                 <div className="lg:col-span-4 flex flex-col min-h-0">
-                  <VizTitle title="Code / 代码" />
+                  <VizTitle 
+                    title="Code / 代码"
+                    tooltip={{
+                      title: "Code Viewer",
+                      description: "Shows the executing code for the KMP algorithm. The highlighted line indicates the current execution point.",
+                      zh: "显示 KMP 算法的执行代码。高亮行表示当前执行位置。"
+                    }}
+                  />
                   <div className="flex-1 min-h-0 overflow-hidden">
                     <CodeViewer 
                       code={KMP_CODE}
@@ -332,14 +402,28 @@ const App = () => {
                   </div>
                 </div>
                 <div className="lg:col-span-4 flex flex-col min-h-0">
-                  <VizTitle title="Next Table & Jumps / Next表与跳转" />
+                  <VizTitle 
+                    title="Next Table & Jumps / Next表与跳转"
+                    tooltip={{
+                      title: "Next Table & Jump History",
+                      description: "Shows the Next (LPS) table and pattern index jumps. Visualizes how the algorithm skips unnecessary comparisons.",
+                      zh: "显示 Next (LPS) 表和模式索引跳转。可视化算法如何跳过不必要的比较。"
+                    }}
+                  />
                   <div className="flex-1 min-h-0 overflow-auto space-y-3">
                     <KMPNextTable nextTable={step.nextTable} pattern={pattern} currentJ={step.j} />
                     <KMPJumpVisualization jumpHistory={step.jumpHistory || []} nextTable={step.nextTable} showTitle={false} />
                   </div>
                 </div>
                 <div className="lg:col-span-4 flex flex-col min-h-0">
-                  <VizTitle title="Statistics / 统计信息" />
+                  <VizTitle 
+                    title="Statistics / 统计信息"
+                    tooltip={{
+                      title: "Match Counter & Statistics",
+                      description: "Shows total matches found, matches per pattern, and processing statistics like first/last match positions and unique pattern count.",
+                      zh: "显示找到的总匹配数、每个模式的匹配数以及处理统计信息，如第一个/最后一个匹配位置和唯一模式计数。"
+                    }}
+                  />
                   <div className="flex-1 min-h-0">
                     <KMPStatistics 
                       comparisons={step.comparisons || 0}
@@ -367,17 +451,38 @@ const App = () => {
           >
             <div className="mb-3 flex-shrink-0">
               <div className="mb-2">
-                <VizTitle title="Visualization / 可视化" />
+                <VizTitle 
+                  title="Visualization / 可视化"
+                  tooltip={{
+                    title: "Algorithm Visualization",
+                    description: "Shows hash values for pattern and text window. Rolling hash updates are animated.",
+                    zh: "显示模式和文本窗口的哈希值。滚动哈希更新是动画的。"
+                  }}
+                />
               </div>
               <div className="mb-3">
-                <VizTitle title="Text Stream / 文本流" />
+                <VizTitle 
+                  title="Text Stream / 文本流"
+                  tooltip={{
+                    title: "Text Stream",
+                    description: "The input text being processed. The highlighted character shows the current position being examined.",
+                    zh: "正在处理的输入文本。高亮字符显示当前正在检查的位置。"
+                  }}
+                />
                 {renderHighlightText(text, [], 'bg-blue-200 border-blue-400', step.matches || [])}
               </div>
             </div>
             <div className="border-t pt-3">
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
                 <div className="lg:col-span-6 flex flex-col min-h-0">
-                  <VizTitle title="Code / 代码" />
+                  <VizTitle 
+                    title="Code / 代码"
+                    tooltip={{
+                      title: "Code Viewer",
+                      description: "Shows the executing code for the Rabin-Karp algorithm. The highlighted line indicates the current execution point.",
+                      zh: "显示 Rabin-Karp 算法的执行代码。高亮行表示当前执行位置。"
+                    }}
+                  />
                   <div className="flex-1 min-h-0 overflow-hidden">
                     <CodeViewer 
                       code={RK_CODE}
@@ -390,13 +495,27 @@ const App = () => {
                 </div>
                 <div className="lg:col-span-6 flex flex-col min-h-0 gap-3">
                   <div className="flex flex-col min-h-0 flex-shrink-0">
-                    <VizTitle title="Hash Values / 哈希值" />
+                    <VizTitle 
+                      title="Hash Values / 哈希值"
+                      tooltip={{
+                        title: "Hash Visualization",
+                        description: "Shows pattern hash (Hp) and window hash (Ht) values with rolling hash animations.",
+                        zh: "显示模式哈希 (Hp) 和窗口哈希 (Ht) 值，带有滚动哈希动画。"
+                      }}
+                    />
                     <div className="flex-1 min-h-0 overflow-auto">
                       <RKHashVisualization step={step} />
                     </div>
                   </div>
                   <div className="flex flex-col min-h-0 flex-1">
-                    <VizTitle title="Details & Statistics / 详情与统计" />
+                    <VizTitle 
+                      title="Details & Statistics / 详情与统计"
+                      tooltip={{
+                        title: "Hash Details & Statistics",
+                        description: "Shows hash parameters, rolling hash formula, collision information, and match statistics.",
+                        zh: "显示哈希参数、滚动哈希公式、冲突信息和匹配统计。"
+                      }}
+                    />
                     <div className="flex-1 min-h-0 overflow-auto space-y-3">
                       <RKHashDetails step={step} showTitle={false} />
                       <RKStatistics 
@@ -424,13 +543,27 @@ const App = () => {
             setCurrentStep={setCurrentStep}
           >
             <div className="mb-2 flex-shrink-0">
-              <VizTitle title="Text Stream / 文本流" />
+              <VizTitle 
+                title="Text Stream / 文本流"
+                tooltip={{
+                  title: "Text Stream",
+                  description: "The input text being processed character by character. Matched patterns are highlighted with different colors and labeled above. The blue highlight shows the current character being processed.",
+                  zh: "正在逐字符处理的输入文本。匹配的模式用不同颜色高亮并在上方标注。蓝色高亮显示当前正在处理的字符。"
+                }}
+              />
               {renderHighlightText(text, step.i !== undefined ? [step.i] : [], 'bg-blue-200 border-blue-400', step.matches || [])}
             </div>
             <div className="border-t pt-2">
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 mb-3">
                 <div className="lg:col-span-4 flex flex-col min-h-0">
-                  <VizTitle title="Code / 代码" />
+                  <VizTitle 
+                    title="Code / 代码"
+                    tooltip={{
+                      title: "Code Viewer",
+                      description: "Shows the executing C++ code for the Aho-Corasick algorithm. The highlighted line indicates the current execution point.",
+                      zh: "显示 Aho-Corasick 算法的执行代码。高亮行表示当前执行位置。"
+                    }}
+                  />
                   <div className="flex-1 min-h-0 overflow-hidden">
                     <CodeViewer 
                       code={AC_CODE}
@@ -442,13 +575,27 @@ const App = () => {
                   </div>
                 </div>
                 <div className="lg:col-span-5 flex flex-col min-h-0">
-                  <VizTitle title="Visualization / 可视化" />
+                  <VizTitle 
+                    title="Visualization / 可视化"
+                    tooltip={{
+                      title: "AC Automaton (Trie)",
+                      description: "Interactive graph showing the AC automaton structure. Solid arrows are character transitions, dashed red arrows are failure links. The blue circle highlights the current state.",
+                      zh: "显示 AC 自动机结构的交互式图。实线箭头是字符转移，红色虚线箭头是失败链接。蓝色圆圈高亮当前状态。"
+                    }}
+                  />
                   <div className="flex-1 min-h-0 overflow-auto">
                     <ACAutomaton step={step} />
                   </div>
                 </div>
                 <div className="lg:col-span-3 flex flex-col min-h-0">
-                  <VizTitle title="Transitions / 转移表" />
+                  <VizTitle 
+                    title="Transitions / 转移表"
+                    tooltip={{
+                      title: "Transition Table",
+                      description: "Table showing all possible character transitions from each state. The highlighted row is the current state, and highlighted cells show active transitions.",
+                      zh: "显示每个状态的所有可能字符转移的表。高亮行是当前状态，高亮单元格显示活动转移。"
+                    }}
+                  />
                   <div className="flex-1 min-h-0 overflow-auto">
                     <TransitionTable 
                       trie={step.trie}
@@ -462,25 +609,53 @@ const App = () => {
               <div className="space-y-2">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2">
                   <div className="flex flex-col min-h-0" style={{ minHeight: '180px' }}>
-                    <VizTitle title="Match History / 匹配历史" />
+                    <VizTitle 
+                      title="Match History / 匹配历史"
+                      tooltip={{
+                        title: "Match History Timeline",
+                        description: "Chronological list of all patterns found during execution. Shows pattern name, position in text, step number, and state where match occurred.",
+                        zh: "执行过程中找到的所有模式的按时间顺序列表。显示模式名称、文本中的位置、步骤号和匹配发生的状态。"
+                      }}
+                    />
                     <div className="flex-1 min-h-0">
                       <MatchHistoryTimeline matchHistory={step.matchHistory || []} currentStep={currentStep} showTitle={false} />
                     </div>
                   </div>
                   <div className="flex flex-col min-h-0" style={{ minHeight: '180px' }}>
-                    <VizTitle title="State History / 状态历史" />
+                    <VizTitle 
+                      title="State History / 状态历史"
+                      tooltip={{
+                        title: "State Transition History",
+                        description: "Breadcrumb trail showing the sequence of states visited during execution. The highlighted state is the current one.",
+                        zh: "显示执行过程中访问的状态序列的面包屑轨迹。高亮状态是当前状态。"
+                      }}
+                    />
                     <div className="flex-1 min-h-0">
                       <StateTransitionHistory stateHistory={step.stateHistory || []} currentNode={step.node} stepType={step.type} showTitle={false} />
                     </div>
                   </div>
                   <div className="flex flex-col min-h-0" style={{ minHeight: '180px' }}>
-                    <VizTitle title="Processing Flow / 处理流程" />
+                    <VizTitle 
+                      title="Processing Flow / 处理流程"
+                      tooltip={{
+                        title: "Character Processing Flow",
+                        description: "Step-by-step visualization of how each character is processed: reading, checking transitions, following failure links, and checking outputs.",
+                        zh: "每个字符处理方式的逐步可视化：读取、检查转移、跟随失败链接和检查输出。"
+                      }}
+                    />
                     <div className="flex-1 min-h-0">
                       <CharacterProcessingFlow step={step} text={text} showTitle={false} />
                     </div>
                   </div>
                   <div className="flex flex-col min-h-0" style={{ minHeight: '180px' }}>
-                    <VizTitle title="Statistics / 统计信息" />
+                    <VizTitle 
+                      title="Statistics / 统计信息"
+                      tooltip={{
+                        title: "Match Counter & Statistics",
+                        description: "Shows total matches found, matches per pattern, and processing statistics like first/last match positions and unique pattern count.",
+                        zh: "显示找到的总匹配数、每个模式的匹配数以及处理统计信息，如第一个/最后一个匹配位置和唯一模式计数。"
+                      }}
+                    />
                     <div className="flex-1 min-h-0">
                       <MatchCounterStats 
                         matches={step.matches || []}
@@ -493,19 +668,40 @@ const App = () => {
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
                   <div className="flex flex-col min-h-0" style={{ minHeight: '180px' }}>
-                    <VizTitle title="Output Sets / 输出集合" />
+                    <VizTitle 
+                      title="Output Sets / 输出集合"
+                      tooltip={{
+                        title: "Output Set Visualization",
+                        description: "Lists all states that have output patterns. Shows which patterns end at each state. The current state is highlighted.",
+                        zh: "列出所有具有输出模式的状态。显示哪些模式在每个状态结束。当前状态被高亮显示。"
+                      }}
+                    />
                     <div className="flex-1 min-h-0">
                       <OutputSetVisualization trie={step.trie} currentNode={step.node} showTitle={false} />
                     </div>
                   </div>
                   <div className="flex flex-col min-h-0" style={{ minHeight: '180px' }}>
-                    <VizTitle title="Optimized Transitions / 优化转移" />
+                    <VizTitle 
+                      title="Optimized Transitions / 优化转移"
+                      tooltip={{
+                        title: "Optimization Visualization",
+                        description: "Shows the optimized direct transitions (O(1)) from the current state. These transitions avoid following failure links by pre-computing them during automaton construction.",
+                        zh: "显示从当前状态的优化直接转移（O(1)）。这些转移通过在自动机构建期间预计算来避免跟随失败链接。"
+                      }}
+                    />
                     <div className="flex-1 min-h-0">
                       <OptimizationVisualization trie={step.trie} currentNode={step.node} transitionChar={step.transitionChar} showTitle={false} />
                     </div>
                   </div>
                   <div className="flex flex-col min-h-0" style={{ minHeight: '180px' }}>
-                    <VizTitle title="Failure Links / 失败链接" />
+                    <VizTitle 
+                      title="Failure Links / 失败链接"
+                      tooltip={{
+                        title: "Failure Link Tree",
+                        description: "Simplified view showing only the failure links in the automaton. Failure links point to the longest proper suffix that is also a prefix of some pattern.",
+                        zh: "仅显示自动机中失败链接的简化视图。失败链接指向某个模式的最长真后缀，同时也是某个模式的前缀。"
+                      }}
+                    />
                     <div className="flex-1 min-h-0">
                       <FailureLinkTree trie={step.trie} layout={step.layout} currentNode={step.node} stepType={step.type} showTitle={false} />
                     </div>
