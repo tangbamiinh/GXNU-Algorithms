@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <circle cx="50" cy="50" r="48" fill="#f8f0f5" />
+
+  <path d="M30 25 C 15 25, 15 45, 5 50 C 15 55, 15 75, 30 75" stroke="#A6007C" stroke-width="6"/>
+
+  <path d="M70 25 C 85 25, 85 45, 95 50 C 85 55, 85 75, 70 75" stroke="#A6007C" stroke-width="6"/>
+
+  <text x="50" y="55" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="22" font-weight="bold" fill="#A6007C" text-anchor="middle" dominant-baseline="middle">
+    GXNU
+  </text>
+</svg>
