@@ -18,10 +18,10 @@ export const MaxFlowGraph = ({ step, showTitle = true }) => {
     const sink = numNodes - 1;
     
     if (node === source) {
-      return { x: 50, y: height / 2, label: 'Source' };
+      return { x: 50, y: height / 2, label: 'S' };
     }
     if (node === sink) {
-      return { x: width - 50, y: height / 2, label: 'Sink' };
+      return { x: width - 50, y: height / 2, label: 'T' };
     }
     
     // Determine if it's an experiment or instrument
@@ -182,7 +182,7 @@ export const MaxFlowGraph = ({ step, showTitle = true }) => {
                   <text
                     x={finalLabelX}
                     y={finalLabelY}
-                    fontSize="10"
+                    fontSize="12"
                     fill={isInfinity ? "#ef4444" : "#666"}
                     fontWeight={isInfinity ? "bold" : "normal"}
                     textAnchor="middle"
@@ -228,7 +228,7 @@ export const MaxFlowGraph = ({ step, showTitle = true }) => {
                 <text
                   x={pos.x}
                   y={pos.y + 5}
-                  fontSize="10"
+                  fontSize="14"
                   fontWeight="bold"
                   textAnchor="middle"
                   fill={isCurrent || isInPath ? '#fff' : '#000'}

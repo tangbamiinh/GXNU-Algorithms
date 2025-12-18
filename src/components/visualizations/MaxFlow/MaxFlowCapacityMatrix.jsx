@@ -12,8 +12,8 @@ export const MaxFlowCapacityMatrix = ({ step, showTitle = true }) => {
 
   // Get node labels
   const getNodeLabel = (node) => {
-    if (node === 0) return 'Source';
-    if (node === numNodes - 1) return 'Sink';
+    if (node === 0) return 'S';
+    if (node === numNodes - 1) return 'T';
     // Estimate m (number of experiments)
     const m = Math.floor((numNodes - 2) / 2);
     if (node <= m) {
