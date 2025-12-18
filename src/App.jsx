@@ -29,7 +29,7 @@ import {
   FailureLinkTree,
   MatchCounterStats
 } from './components/visualizations/AC';
-import { MaxFlowGraph, MaxFlowStatistics, MaxFlowPathHistory } from './components/visualizations/MaxFlow';
+import { MaxFlowGraph, MaxFlowStatistics, MaxFlowPathHistory, MaxFlowCapacityMatrix } from './components/visualizations/MaxFlow';
 
 const App = () => {
   const [algo, setAlgo] = useState('naive');
@@ -791,7 +791,7 @@ const App = () => {
                   </div>
                 </div>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
                 <div className="flex flex-col min-h-0" style={{ minHeight: '200px' }}>
                   <VizTitle 
                     title="Augmenting Paths / 增广路径"
@@ -816,6 +816,21 @@ const App = () => {
                   />
                   <div className="flex-1 min-h-0">
                     <MaxFlowStatistics step={step} showTitle={false} />
+                  </div>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 gap-3">
+                <div className="flex flex-col min-h-0" style={{ minHeight: '300px' }}>
+                  <VizTitle 
+                    title="Capacity Matrix / 容量矩阵"
+                    tooltip={{
+                      title: "Capacity Matrix",
+                      description: "Shows the complete capacity matrix with flow values. Each cell displays flow/capacity. Blue cells indicate forward edges, red cells indicate infinity capacity, yellow cells indicate residual edges.",
+                      zh: "显示完整的容量矩阵和流量值。每个单元格显示流量/容量。蓝色单元格表示正向边，红色单元格表示无穷大容量，黄色单元格表示残量边。"
+                    }}
+                  />
+                  <div className="flex-1 min-h-0">
+                    <MaxFlowCapacityMatrix step={step} showTitle={false} />
                   </div>
                 </div>
               </div>
