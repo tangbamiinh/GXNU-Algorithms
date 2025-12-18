@@ -36,7 +36,7 @@ const App = () => {
   const [text, setText] = useState('ababcabcacbab');
   const [pattern, setPattern] = useState('abcac');
   const [patternsAC, setPatternsAC] = useState('arrows, row, sun, under');
-  const [maxFlowInput, setMaxFlowInput] = useState('2 3|10 1 2|25 2 3|5 6 7');
+  const [maxFlowInput, setMaxFlowInput] = useState('3 4|20 1 2|15 2 3|25 3 4|5 8 7 6');
   
   const [steps, setSteps] = useState([]);
   const [currentStep, setCurrentStep] = useState(0);
