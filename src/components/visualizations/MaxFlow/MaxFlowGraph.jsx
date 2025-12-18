@@ -108,25 +108,85 @@ export const MaxFlowGraph = ({ step, showTitle = true }) => {
               const color = getEdgeColor(u, v);
               const width = getEdgeWidth(u, v);
               
+              // Create a curved path using quadratic Bezier curve
+              // Use a deterministic but varied curve based on edge endpoints to avoid overlaps
+              const dx = posV.x - posU.x;
+              const dy = posV.y - posU.y;
+              const distance = Math.sqrt(dx * dx + dy * dy);
+              
+              // Create a control point offset perpendicular to the line
+              // Use edge ID to create consistent but varied curves
+              const edgeId = u * 1000 + v; // Create unique ID for consistent randomness
+              const seed = (edgeId * 17 + 23) % 200; // Pseudo-random but deterministic
+              
+              // Stronger curvature with alternating directions to separate crossing edges
+              // Use both edge endpoints to determine curve direction for better separation
+              const nodeSum = u + v;
+              const curvatureSign = (nodeSum % 2 === 0) ? 1 : -1;
+              
+              // Stronger curvature: -0.5 to 0.5 curvature factor
+              // Bias away from zero to ensure visible curves
+              const baseCurvature = (seed / 200 - 0.5) * 1.0; // -0.5 to 0.5
+              const curvature = curvatureSign * (Math.abs(baseCurvature) < 0.15 ? 
+                (baseCurvature >= 0 ? 0.3 : -0.3) : baseCurvature);
+              
+              // Perpendicular vector for curve control point
+              const perpX = -dy / distance;
+              const perpY = dx / distance;
+              
+              // Control point offset from midpoint - use stronger offset for better separation
+              const controlOffset = distance * curvature * 0.7; // Increased to 0.7 for more pronounced curves
+              const midX = (posU.x + posV.x) / 2;
+              const midY = (posU.y + posV.y) / 2;
+              const controlX = midX + perpX * controlOffset;
+              const controlY = midY + perpY * controlOffset;
+              
+              // Calculate label position on curve (at 50% of curve)
+              const t = 0.5;
+              const labelX = (1 - t) * (1 - t) * posU.x + 2 * (1 - t) * t * controlX + t * t * posV.x;
+              const labelY = (1 - t) * (1 - t) * posU.y + 2 * (1 - t) * t * controlY + t * t * posV.y;
+              
+              // Calculate normal vector at label position for better offset
+              const tangentX = 2 * (1 - t) * (controlX - posU.x) + 2 * t * (posV.x - controlX);
+              const tangentY = 2 * (1 - t) * (controlY - posU.y) + 2 * t * (posV.y - controlY);
+              const tangentLength = Math.sqrt(tangentX * tangentX + tangentY * tangentY);
+              const normalX = -tangentY / tangentLength; // Perpendicular to tangent
+              const normalY = tangentX / tangentLength;
+              
+              // Offset label perpendicular to curve, further away
+              const labelOffset = 15; // Increased from 8
+              const finalLabelX = labelX + normalX * labelOffset;
+              const finalLabelY = labelY + normalY * labelOffset;
+              
               return (
                 <g key={`${u}-${v}`}>
-                  <line
-                    x1={posU.x}
-                    y1={posU.y}
-                    x2={posV.x}
-                    y2={posV.y}
+                  <path
+                    d={`M ${posU.x} ${posU.y} Q ${controlX} ${controlY} ${posV.x} ${posV.y}`}
                     stroke={color}
                     strokeWidth={Math.max(1, width)}
+                    fill="none"
                     markerEnd="url(#arrowhead)"
                     strokeDasharray={isInfinity ? "5,5" : "none"}
                   />
+                  {/* Background rectangle for text readability */}
+                  <rect
+                    x={finalLabelX - 25}
+                    y={finalLabelY - 7}
+                    width="50"
+                    height="14"
+                    fill="white"
+                    fillOpacity="0.9"
+                    stroke="none"
+                    rx="2"
+                  />
                   <text
-                    x={(posU.x + posV.x) / 2}
-                    y={(posU.y + posV.y) / 2 - 5}
+                    x={finalLabelX}
+                    y={finalLabelY}
                     fontSize="10"
                     fill={isInfinity ? "#ef4444" : "#666"}
                     fontWeight={isInfinity ? "bold" : "normal"}
                     textAnchor="middle"
+                    dominantBaseline="middle"
                   >
                     {f}/{isInfinity ? '∞' : c}
                   </text>
