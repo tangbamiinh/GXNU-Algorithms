@@ -16,10 +16,26 @@ export const CodeViewer = ({ code, highlightedLine, stepType, showTitle = true, 
       const cppKeywords = ['int', 'const', 'string', 'for', 'if', 'return', 'while', 'bool', 'void', 'class', 'struct'];
       const pythonKeywords = ['def', 'class', 'self', 'if', 'for', 'while', 'return', 'True', 'False', 'None', 'and', 'or', 'not', 'in', 'is', 'import', 'from', 'as'];
       const keywords = isPython ? pythonKeywords : cppKeywords;
-      const types = ['tnode', 'root', 'deque', 'float'];
-      const operators = ['->', '!=', '++', '+=', '=', '==', '!=', '-=', '*='];
       
-      let parts = [{ text: line, type: 'normal' }];
+      // First, separate code from comments to avoid highlighting keywords inside comments
+      let codePart = line;
+      let commentPart = '';
+      let commentSymbol = '';
+      
+      if (isPython && line.includes('#')) {
+        const commentIndex = line.indexOf('#');
+        codePart = line.substring(0, commentIndex);
+        commentPart = line.substring(commentIndex + 1);
+        commentSymbol = '#';
+      } else if (!isPython && line.includes('//')) {
+        const commentIndex = line.indexOf('//');
+        codePart = line.substring(0, commentIndex);
+        commentPart = line.substring(commentIndex + 2);
+        commentSymbol = '//';
+      }
+      
+      // Apply keyword highlighting only to the code part (not comments)
+      let parts = [{ text: codePart, type: 'normal' }];
       
       keywords.forEach(kw => {
         const regex = new RegExp(`\\b${kw}\\b`, 'g');
@@ -44,31 +60,25 @@ export const CodeViewer = ({ code, highlightedLine, stepType, showTitle = true, 
         });
       });
       
-      return parts.map((part, i) => {
+      // Render code parts with highlighting
+      const codeElements = parts.map((part, i) => {
         if (part.type === 'keyword') {
           return <span key={i} className="text-purple-400">{part.text}</span>;
         }
-        // Handle comments - Python uses #, C++ uses //
-        if (isPython && part.text.includes('#')) {
-          const [code, comment] = part.text.split('#');
-          return (
-            <span key={i}>
-              {code}
-              <span className="text-gray-500">#{comment}</span>
-            </span>
-          );
-        }
-        if (!isPython && part.text.includes('//')) {
-          const [code, comment] = part.text.split('//');
-          return (
-            <span key={i}>
-              {code}
-              <span className="text-gray-500">//{comment}</span>
-            </span>
-          );
-        }
         return <span key={i}>{part.text}</span>;
       });
+      
+      // Render comment part in plain gray (no highlighting)
+      if (commentPart) {
+        return (
+          <span>
+            {codeElements}
+            <span className="text-gray-500">{commentSymbol}{commentPart}</span>
+          </span>
+        );
+      }
+      
+      return <span>{codeElements}</span>;
     };
 
     return (
