@@ -168,7 +168,7 @@ export const MaxFlowGraph = ({ step, showTitle = true }) => {
                 <text
                   x={pos.x}
                   y={pos.y + 5}
-                  fontSize="12"
+                  fontSize="10"
                   fontWeight="bold"
                   textAnchor="middle"
                   fill={isCurrent || isInPath ? '#fff' : '#000'}
