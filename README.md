@@ -5,19 +5,23 @@ A React + Vite application for visualizing string searching and pattern matching
 ## Algorithms
 
 ### 1. Naive String Matching (朴素算法)
+
 Basic pattern matching algorithm with character-by-character comparison visualization.
 
 **Visualizations:**
+
 - **Code Viewer**: Real-time C++ code execution with syntax highlighting
 - **Text Stream**: Character-by-character visualization with index indicators
 - **Pattern Window**: Visual sliding window showing current comparison position
 - **Match History**: Chronological list of all matches found with positions
 - **Statistics**: Total comparisons, matches found, and performance metrics
 
-### 2. KMP Algorithm (KMP算法)
+### 2. KMP Algorithm (KMP 算法)
+
 Knuth-Morris-Pratt algorithm with Next (LPS) table visualization and failure function demonstration.
 
 **Visualizations:**
+
 - **Code Viewer**: Real-time C++ code execution with syntax highlighting
 - **Text Stream**: Character-by-character visualization with index indicators
 - **Pattern Window**: Visual sliding window showing current comparison position
@@ -25,20 +29,24 @@ Knuth-Morris-Pratt algorithm with Next (LPS) table visualization and failure fun
 - **Jump Visualization**: Visual representation of pattern index jumps when mismatches occur
 - **Statistics**: Total comparisons, matches found, and jump efficiency metrics
 
-### 3. Rabin-Karp Algorithm (RK算法)
+### 3. Rabin-Karp Algorithm (RK 算法)
+
 Rolling hash-based pattern matching with comprehensive hash value visualization.
 
 **Visualizations:**
+
 - **Code Viewer**: Real-time C++ code execution with syntax highlighting
 - **Text Stream**: Character-by-character visualization with index indicators
 - **Hash Values**: Animated visualization of pattern hash (Hp) and rolling window hash (Ht)
 - **Hash Details**: Hash parameters, rolling hash formula, and collision information
 - **Statistics**: Total comparisons, hash collisions, matches found, and performance metrics
 
-### 4. Aho-Corasick Algorithm (AC自动机)
+### 4. Aho-Corasick Algorithm (AC 自动机)
+
 Multi-pattern matching with interactive trie automaton visualization and comprehensive analysis tools.
 
 **Visualizations:**
+
 - **Code Viewer**: Real-time C++ code execution with syntax highlighting
 - **Interactive Trie Automaton**: SVG graph showing the AC automaton structure
   - Solid arrows: Character transitions
@@ -56,9 +64,25 @@ Multi-pattern matching with interactive trie automaton visualization and compreh
 - **Matched Patterns Highlighting**: Color-coded pattern matches in the text stream
 - **Failure Link Path Animation**: Animated paths showing failure link traversal
 
+### 5. Max Flow Algorithm (最大流算法)
+
+Edmonds-Karp algorithm for finding maximum flow in a network flow problem, applied to space flight planning optimization.
+
+**Visualizations:**
+
+- **Code Viewer**: Real-time C++ code execution with syntax highlighting (BFS and flow augmentation phases)
+- **Graph Visualization**: Interactive SVG graph showing the flow network structure
+  - Nodes: Source, Experiments, Instruments, Sink
+  - Edges: Flow/capacity labels, color-coded by flow status
+  - Augmenting paths highlighted in green
+  - Current node highlighted in blue
+- **Augmenting Paths**: History of all augmenting paths found during execution
+- **Statistics**: Maximum flow value, total revenue, maximum profit, and path count
+
 ## Key Features
 
 ### Interactive Controls
+
 - **Play/Pause**: Start/stop automatic execution
 - **Step Forward/Backward**: Navigate manually through algorithm steps
 - **Reset**: Return to the beginning of execution
@@ -66,12 +90,14 @@ Multi-pattern matching with interactive trie automaton visualization and compreh
 - **Step Counter**: Real-time display of current step number
 
 ### Code Visualization
+
 - **Real-time Code Highlighting**: All algorithms feature live code execution highlighting
 - **Syntax Highlighting**: C++ code with proper syntax colors
 - **File Headers**: Code blocks display algorithm name and filename
 - **Compact Layout**: Optimized spacing for better readability
 
 ### User Interface
+
 - **Bilingual Support**: Full English and Chinese (中文) interface
 - **Tooltips**: Interactive help tooltips for all visualizations (hover over ℹ️ icons)
 - **Responsive Design**: Optimized layouts for different screen sizes
@@ -79,6 +105,7 @@ Multi-pattern matching with interactive trie automaton visualization and compreh
 - **Screen-Fitting Layout**: Visualizations automatically fit to viewport height
 
 ### Visual Enhancements
+
 - **Color-Coded Elements**: Different colors for matches, comparisons, states, and transitions
 - **Animated Transitions**: Smooth animations for state changes and pattern matching
 - **Interactive Elements**: Hover effects and clickable components
@@ -145,15 +172,18 @@ npm run preview
 
 ## Usage
 
-1. **Select an Algorithm**: Choose from Naive, KMP, Rabin-Karp, or Aho-Corasick in the header
+1. **Select an Algorithm**: Choose from Naive, KMP, Rabin-Karp, Aho-Corasick, or Max Flow in the header
 
 2. **Configure Input**:
+
    - Enter your text string in the "Text (Main String) / 文本（主字符串）" field
    - Enter pattern(s):
      - For Naive, KMP, and Rabin-Karp: Enter a single pattern
      - For Aho-Corasick: Enter comma-separated patterns (e.g., "arrows, row, sun, under")
+     - For Max Flow: Enter problem data in format "m n|exp1_revenue exp1_instrs...|costs..." (e.g., "2 2|10 1 2|5 1|3 4")
 
 3. **Control Playback**:
+
    - Use the play/pause button in the title bar to start/stop automatic execution
    - Use step forward/backward buttons to navigate manually
    - Use reset button to return to the beginning
@@ -162,10 +192,12 @@ npm run preview
 4. **Adjust Speed**: Use the speed slider to control how fast the algorithm steps execute
 
 5. **Explore Visualizations**:
+
    - **All Algorithms**: Watch the code viewer highlight executing lines
    - **Naive/KMP**: Observe pattern window movements and character comparisons
    - **Rabin-Karp**: See hash values update with rolling hash animations
    - **Aho-Corasick**: Explore the interactive trie automaton with multiple visualization panels
+   - **Max Flow**: Watch BFS path finding and flow augmentation in the network graph
    - Hover over ℹ️ icons for detailed explanations of each visualization
 
 6. **View Statistics**: Check match counts, comparisons, and performance metrics in the statistics panels
@@ -173,24 +205,34 @@ npm run preview
 ## Algorithm Details
 
 ### Naive String Matching
+
 - **Time Complexity**: O(nm) where n is text length, m is pattern length
 - **Space Complexity**: O(1)
 - **Best Use Case**: Simple pattern matching, educational purposes
 
 ### KMP Algorithm
+
 - **Time Complexity**: O(n + m) preprocessing + O(n) matching
 - **Space Complexity**: O(m) for the Next/LPS table
 - **Best Use Case**: Single pattern matching with repeated substrings
 
 ### Rabin-Karp Algorithm
+
 - **Time Complexity**: O(n + m) average case, O(nm) worst case
 - **Space Complexity**: O(1)
 - **Best Use Case**: Multiple pattern matching, plagiarism detection
 
 ### Aho-Corasick Algorithm
+
 - **Time Complexity**: O(n + m + z) where z is number of matches
 - **Space Complexity**: O(m) where m is total pattern length
 - **Best Use Case**: Multiple pattern matching simultaneously
+
+### Max Flow Algorithm (Edmonds-Karp)
+
+- **Time Complexity**: O(V × E²) where V is vertices, E is edges
+- **Space Complexity**: O(V²) for capacity matrix
+- **Best Use Case**: Network flow optimization, resource allocation, min-cut problems
 
 ## License
 

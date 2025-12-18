@@ -6,8 +6,8 @@ import { CodeViewer } from './components/CodeViewer';
 import { renderHighlightText } from './components/TextHighlight';
 import { AlgorithmLayout } from './components/AlgorithmLayout';
 import PDFViewer from './components/PDFViewer';
-import { generateNaiveSteps, generateKMPSteps, generateRKSteps, generateACSteps } from './utils/algorithmGenerators';
-import { getCodeLineForStep, NAIVE_CODE, KMP_CODE, RK_CODE, AC_CODE, getACCode } from './constants/codeSnippets';
+import { generateNaiveSteps, generateKMPSteps, generateRKSteps, generateACSteps, generateMaxFlowSteps } from './utils/algorithmGenerators';
+import { getCodeLineForStep, NAIVE_CODE, KMP_CODE, RK_CODE, AC_CODE, getACCode, MAXFLOW_CODE, MAXFLOW_BFS_CODE, getMaxFlowCode } from './constants/codeSnippets';
 import { hasSlides, getSlideInfo } from './constants/slides';
 import { FileText } from 'lucide-react';
 import { NaiveMatchHistory } from './components/visualizations/Naive/NaiveMatchHistory';
@@ -29,12 +29,14 @@ import {
   FailureLinkTree,
   MatchCounterStats
 } from './components/visualizations/AC';
+import { MaxFlowGraph, MaxFlowStatistics, MaxFlowPathHistory } from './components/visualizations/MaxFlow';
 
 const App = () => {
   const [algo, setAlgo] = useState('naive');
   const [text, setText] = useState('ababcabcacbab');
   const [pattern, setPattern] = useState('abcac');
   const [patternsAC, setPatternsAC] = useState('arrows, row, sun, under');
+  const [maxFlowInput, setMaxFlowInput] = useState('2 3|10 1 2|25 2 3|5 6 7');
   
   const [steps, setSteps] = useState([]);
   const [currentStep, setCurrentStep] = useState(0);
@@ -74,11 +76,14 @@ const App = () => {
       case 'ac':
         generatedSteps = generateACSteps(text, patternsAC);
         break;
+      case 'maxflow':
+        generatedSteps = generateMaxFlowSteps(maxFlowInput);
+        break;
       default:
         break;
     }
     setSteps(generatedSteps);
-  }, [algo, text, pattern, patternsAC]);
+  }, [algo, text, pattern, patternsAC, maxFlowInput]);
 
   // Timer Logic
   useEffect(() => {
@@ -122,17 +127,14 @@ const App = () => {
         {/* Header */}
         <header className="flex flex-col md:flex-row justify-between items-center bg-white p-6 rounded-2xl shadow-sm border border-gray-200">
           <div>
-            <h1 className="text-3xl font-bold text-blue-900 flex items-center gap-2">
+            <h1 className="text-3xl font-bold text-blue-900">
               Algorithm Visualization
-              <Badge color="blue">Chap 9.1</Badge>
             </h1>
-            <p className="text-gray-500 mt-1">String Searching & Pattern Matching Mechanisms</p>
-            <p className="text-gray-400 text-sm">字符串搜索与模式匹配机制</p>
           </div>
           
           <div className="flex gap-2 mt-4 md:mt-0 items-center flex-wrap">
             <div className="flex gap-2 flex-wrap">
-              {['naive', 'kmp', 'rk', 'ac'].map(key => (
+              {['naive', 'kmp', 'rk', 'ac', 'maxflow'].map(key => (
                 <button
                   key={key}
                   onClick={() => setAlgo(key)}
@@ -147,12 +149,14 @@ const App = () => {
                     {key === 'kmp' && 'KMP'}
                     {key === 'rk' && 'Rabin-Karp'}
                     {key === 'ac' && 'Aho-Corasick'}
+                    {key === 'maxflow' && 'Max Flow'}
                   </span>
                   <span className="text-[10px] opacity-80 font-normal">
                     {key === 'naive' && '朴素算法'}
                     {key === 'kmp' && 'KMP算法'}
                     {key === 'rk' && 'RK算法'}
                     {key === 'ac' && 'AC自动机'}
+                    {key === 'maxflow' && '最大流'}
                   </span>
                 </button>
               ))}
@@ -172,22 +176,26 @@ const App = () => {
 
         {/* Configuration Panel */}
         <Card title="Configuration / 配置" className="mb-2">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Text (Main String) <span className="text-gray-400 font-normal">/ 文本(主串)</span>
-              </label>
-              <input 
-                type="text" 
-                value={text} 
-                onChange={(e) => setText(e.target.value)}
-                className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none transition-shadow duration-200"
-              />
-            </div>
+          <div className={`grid grid-cols-1 gap-3 ${algo === 'maxflow' ? 'md:grid-cols-2' : 'md:grid-cols-3'}`}>
+            {algo !== 'maxflow' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Text (Main String) <span className="text-gray-400 font-normal">/ 文本(主串)</span>
+                </label>
+                <input 
+                  type="text" 
+                  value={text} 
+                  onChange={(e) => setText(e.target.value)}
+                  className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none transition-shadow duration-200"
+                />
+              </div>
+            )}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 {algo === 'ac' ? (
                   <>Patterns (comma separated) <span className="text-gray-400 font-normal ml-1">/ 模式串 (逗号分隔)</span></>
+                ) : algo === 'maxflow' ? (
+                  <>Input (m n|exp1_revenue exp1_instrs...|costs...) <span className="text-gray-400 font-normal ml-1">/ 输入</span></>
                 ) : (
                   <>Pattern <span className="text-gray-400 font-normal ml-1">/ 模式串</span></>
                 )}
@@ -198,6 +206,14 @@ const App = () => {
                   value={patternsAC} 
                   onChange={(e) => setPatternsAC(e.target.value)}
                   className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none transition-shadow duration-200"
+                />
+              ) : algo === 'maxflow' ? (
+                <input 
+                  type="text" 
+                  value={maxFlowInput} 
+                  onChange={(e) => setMaxFlowInput(e.target.value)}
+                  className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none transition-shadow duration-200"
+                  placeholder="2 2|10 1 2|5 1|3 4"
                 />
               ) : (
                 <input 
@@ -554,8 +570,8 @@ const App = () => {
               {renderHighlightText(text, step.i !== undefined ? [step.i] : [], 'bg-blue-200 border-blue-400', step.matches || [])}
             </div>
             <div className="border-t pt-2">
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 mb-3">
-                <div className="lg:col-span-4 flex flex-col min-h-0">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-3">
+                <div className="flex flex-col min-h-0">
                   <VizTitle 
                     title="Code / 代码"
                     tooltip={{
@@ -566,15 +582,21 @@ const App = () => {
                   />
                   <div className="flex-1 min-h-0 overflow-hidden">
                     <CodeViewer 
-                      code={step.phase === 'build' ? getACCode('build') : AC_CODE}
+                      code={step.phase === 'build_trie' ? getACCode('build_trie') : 
+                            step.phase === 'build_failure' ? getACCode('build_failure') : 
+                            AC_CODE}
                       highlightedLine={getCodeLineForStep('ac', step.type, step)}
                       stepType={step.type}
-                      fileName={step.phase === 'build' ? "aho_corasick_build.cpp" : "mult_search.cpp"}
-                      algorithmName={step.phase === 'build' ? "Aho-Corasick: Building Automaton" : "Aho-Corasick Algorithm"}
+                      fileName={step.phase === 'build_trie' ? "build_trie.cpp" : 
+                                step.phase === 'build_failure' ? "build_failure.cpp" : 
+                                "mult_search.cpp"}
+                      algorithmName={step.phase === 'build_trie' ? "Stage 1: Build Trie" : 
+                                    step.phase === 'build_failure' ? "Stage 2: Build Failure Links" : 
+                                    "Stage 3: Search"}
                     />
                   </div>
                 </div>
-                <div className="lg:col-span-5 flex flex-col min-h-0">
+                <div className="flex flex-col min-h-0">
                   <VizTitle 
                     title="Visualization / 可视化"
                     tooltip={{
@@ -587,26 +609,28 @@ const App = () => {
                     <ACAutomaton step={step} />
                   </div>
                 </div>
-                <div className="lg:col-span-3 flex flex-col min-h-0">
-                  <VizTitle 
-                    title="Transitions / 转移表"
-                    tooltip={{
-                      title: "Transition Table",
-                      description: "Table showing all possible character transitions from each state. The highlighted row is the current state, and highlighted cells show active transitions.",
-                      zh: "显示每个状态的所有可能字符转移的表。高亮行是当前状态，高亮单元格显示活动转移。"
-                    }}
-                  />
-                  <div className="flex-1 min-h-0 overflow-auto">
-                    <TransitionTable 
-                      trie={step.trie}
-                      currentNode={step.node}
-                      transitionChar={step.transitionChar}
-                      stepType={step.type}
-                    />
-                  </div>
-                </div>
               </div>
               <div className="space-y-2">
+                <div className="grid grid-cols-1 lg:grid-cols-1 gap-2 mb-2">
+                  <div className="flex flex-col min-h-0" style={{ minHeight: '200px' }}>
+                    <VizTitle 
+                      title="Transitions / 转移表"
+                      tooltip={{
+                        title: "Transition Table",
+                        description: "Table showing all possible character transitions from each state. The highlighted row is the current state, and highlighted cells show active transitions.",
+                        zh: "显示每个状态的所有可能字符转移的表。高亮行是当前状态，高亮单元格显示活动转移。"
+                      }}
+                    />
+                    <div className="flex-1 min-h-0 overflow-auto">
+                      <TransitionTable 
+                        trie={step.trie}
+                        currentNode={step.node}
+                        transitionChar={step.transitionChar}
+                        stepType={step.type}
+                      />
+                    </div>
+                  </div>
+                </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2">
                   <div className="flex flex-col min-h-0" style={{ minHeight: '180px' }}>
                     <VizTitle 
@@ -705,6 +729,93 @@ const App = () => {
                     <div className="flex-1 min-h-0">
                       <FailureLinkTree trie={step.trie} layout={step.layout} currentNode={step.node} stepType={step.type} showTitle={false} />
                     </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </AlgorithmLayout>
+        )}
+
+        {algo === 'maxflow' && (
+          <AlgorithmLayout
+            title="Visualization / 演示"
+            step={step}
+            currentStep={currentStep}
+            steps={steps}
+            isPlaying={isPlaying}
+            setIsPlaying={setIsPlaying}
+            setCurrentStep={setCurrentStep}
+          >
+            <div className="mb-3 flex-shrink-0">
+              <VizTitle 
+                title="Max Flow Algorithm / 最大流算法"
+                tooltip={{
+                  title: "Max Flow Visualization",
+                  description: "Visualizes the Edmonds-Karp algorithm for finding maximum flow in a network. Shows graph structure, BFS path finding, and flow augmentation.",
+                  zh: "可视化用于在网络中查找最大流的 Edmonds-Karp 算法。显示图结构、BFS 路径查找和流量增加。"
+                }}
+              />
+            </div>
+            <div className="border-t pt-3">
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 mb-3">
+                <div className="lg:col-span-6 flex flex-col min-h-0">
+                  <VizTitle 
+                    title="Code / 代码"
+                    tooltip={{
+                      title: "Code Viewer",
+                      description: "Shows the executing code for the Max Flow algorithm. The highlighted line indicates the current execution point.",
+                      zh: "显示最大流算法的执行代码。高亮行表示当前执行位置。"
+                    }}
+                  />
+                  <div className="flex-1 min-h-0 overflow-hidden">
+                    <CodeViewer 
+                      code={step.phase === 'bfs' ? getMaxFlowCode('bfs') : getMaxFlowCode('flow')}
+                      highlightedLine={getCodeLineForStep('maxflow', step.type, step)}
+                      stepType={step.type}
+                      fileName={step.phase === 'bfs' ? "bfs.py" : "max_flow.py"}
+                      algorithmName={step.phase === 'bfs' ? "BFS - Find Augmenting Path" : "Max Flow - Edmonds-Karp"}
+                    />
+                  </div>
+                </div>
+                <div className="lg:col-span-6 flex flex-col min-h-0">
+                  <VizTitle 
+                    title="Graph Visualization / 图可视化"
+                    tooltip={{
+                      title: "Graph Structure",
+                      description: "Shows the flow network with nodes and edges. Green edges indicate augmenting paths, blue edges show flow, and edge labels show flow/capacity.",
+                      zh: "显示带有节点和边的流网络。绿色边表示增广路径，蓝色边显示流量，边标签显示流量/容量。"
+                    }}
+                  />
+                  <div className="flex-1 min-h-0 overflow-auto">
+                    <MaxFlowGraph step={step} showTitle={false} />
+                  </div>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="flex flex-col min-h-0" style={{ minHeight: '200px' }}>
+                  <VizTitle 
+                    title="Augmenting Paths / 增广路径"
+                    tooltip={{
+                      title: "Path History",
+                      description: "Shows all augmenting paths found during execution. Each path shows the sequence of nodes and the flow augmented along that path.",
+                      zh: "显示执行过程中找到的所有增广路径。每条路径显示节点序列和沿该路径增加的流量。"
+                    }}
+                  />
+                  <div className="flex-1 min-h-0">
+                    <MaxFlowPathHistory step={step} showTitle={false} />
+                  </div>
+                </div>
+                <div className="flex flex-col min-h-0" style={{ minHeight: '200px' }}>
+                  <VizTitle 
+                    title="Statistics / 统计信息"
+                    tooltip={{
+                      title: "Algorithm Statistics",
+                      description: "Shows maximum flow value, total revenue, maximum profit, and number of augmenting paths found.",
+                      zh: "显示最大流值、总收益、最大利润和找到的增广路径数。"
+                    }}
+                  />
+                  <div className="flex-1 min-h-0">
+                    <MaxFlowStatistics step={step} showTitle={false} />
                   </div>
                 </div>
               </div>

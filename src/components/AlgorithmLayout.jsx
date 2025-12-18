@@ -16,7 +16,7 @@ export const AlgorithmLayout = ({
 }) => {
   // Find the first search phase step
   const firstSearchStepIndex = steps.findIndex(s => s.phase === 'search');
-  const isInBuildingPhase = step && (step.phase === 'build' || (firstSearchStepIndex !== -1 && currentStep < firstSearchStepIndex));
+  const isInBuildingPhase = step && (step.phase === 'build_trie' || step.phase === 'build_failure' || (firstSearchStepIndex !== -1 && currentStep < firstSearchStepIndex));
   
   const jumpToSearch = () => {
     if (firstSearchStepIndex !== -1) {

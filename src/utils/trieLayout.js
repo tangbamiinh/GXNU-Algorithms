@@ -29,18 +29,18 @@ export const calculateTrieLayout = (trie) => {
   }
 
   // Layout
-  const levelHeight = 60; // Reduced from 80 to make graph more compact vertically
+  const levelHeight = 100; // Increased for better spacing
   const nodeSpacing = 70;
   const maxNodesInLevel = Math.max(...levels.map(l => l.length));
   const width = Math.max(600, maxNodesInLevel * nodeSpacing + 100);
-  const height = levels.length * levelHeight + 40; // Reduced padding from 60 to 40
+  const height = Math.max(300, levels.length * levelHeight + 80); // Minimum 300px height, increased padding
 
   levels.forEach((levelNodes, depth) => {
       const totalW = width;
       const step = totalW / (levelNodes.length + 1);
       levelNodes.forEach((nodeId, idx) => {
           nodes[nodeId].x = step * (idx + 1);
-          nodes[nodeId].y = depth * levelHeight + 20; // Reduced from 40 to 20 for more compact layout
+          nodes[nodeId].y = depth * levelHeight + 60; // Increased from 20 to 60 for better spacing
       });
   });
 

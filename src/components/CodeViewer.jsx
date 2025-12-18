@@ -10,9 +10,14 @@ export const CodeViewer = ({ code, highlightedLine, stepType, showTitle = true, 
     
     // Syntax highlighting for keywords
     const renderSyntax = (line) => {
-      const keywords = ['int', 'const', 'string', 'for', 'if', 'return', 'while'];
-      const types = ['tnode', 'root'];
-      const operators = ['->', '!=', '++', '+=', '='];
+      // Detect language based on file extension or code patterns
+      const isPython = fileName && fileName.endsWith('.py');
+      
+      const cppKeywords = ['int', 'const', 'string', 'for', 'if', 'return', 'while', 'bool', 'void', 'class', 'struct'];
+      const pythonKeywords = ['def', 'class', 'self', 'if', 'for', 'while', 'return', 'True', 'False', 'None', 'and', 'or', 'not', 'in', 'is', 'import', 'from', 'as'];
+      const keywords = isPython ? pythonKeywords : cppKeywords;
+      const types = ['tnode', 'root', 'deque', 'float'];
+      const operators = ['->', '!=', '++', '+=', '=', '==', '!=', '-=', '*='];
       
       let parts = [{ text: line, type: 'normal' }];
       
@@ -43,12 +48,22 @@ export const CodeViewer = ({ code, highlightedLine, stepType, showTitle = true, 
         if (part.type === 'keyword') {
           return <span key={i} className="text-purple-400">{part.text}</span>;
         }
-        if (part.text.includes('//')) {
+        // Handle comments - Python uses #, C++ uses //
+        if (isPython && part.text.includes('#')) {
+          const [code, comment] = part.text.split('#');
+          return (
+            <span key={i}>
+              {code}
+              <span className="text-gray-500">#{comment}</span>
+            </span>
+          );
+        }
+        if (!isPython && part.text.includes('//')) {
           const [code, comment] = part.text.split('//');
           return (
             <span key={i}>
               {code}
-              <span className="text-green-400">//{comment}</span>
+              <span className="text-gray-500">//{comment}</span>
             </span>
           );
         }
@@ -128,4 +143,5 @@ export const CodeViewer = ({ code, highlightedLine, stepType, showTitle = true, 
     </div>
   );
 };
+
 

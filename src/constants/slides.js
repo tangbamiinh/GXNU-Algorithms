@@ -19,6 +19,11 @@ export const SLIDE_PDFS = {
     path: '/data/slides/Aho-Corasick_Multi-Pattern_Search.pdf',
     title: 'Aho-Corasick Multi-Pattern Search',
     titleZh: 'Aho-Corasick 多模式搜索'
+  },
+  maxflow: {
+    path: '/data/slides/Space_Planning_Max-Flow_Min-Cut.pdf',
+    title: 'Space Planning: Max-Flow Min-Cut',
+    titleZh: '空间规划：最大流最小割'
   }
 };
 

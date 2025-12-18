@@ -29,7 +29,15 @@ export const ACAutomaton = ({ step }) => {
   
   // Determine which nodes and links to show based on phase
   const phase = step.phase || 'search';
-  const isBuilding = phase === 'build';
+  const isBuilding = phase === 'build_trie' || phase === 'build_failure';
+  
+  // Get stage label
+  const getStageLabel = () => {
+    if (phase === 'build_trie') return { en: 'Stage 1: Build Trie', zh: '阶段 1：构建 Trie' };
+    if (phase === 'build_failure') return { en: 'Stage 2: Build Failure Links', zh: '阶段 2：构建失败链接' };
+    return { en: 'Stage 3: Search', zh: '阶段 3：搜索' };
+  };
+  const stageLabel = getStageLabel();
   
   // Build character label map for nodes
   const trieForMapping = step.trie;
@@ -67,9 +75,9 @@ export const ACAutomaton = ({ step }) => {
   
   // Calculate tooltip position - show above if node is low enough, below if near top
   const tooltipWidth = 240;
-  const tooltipHeight = 60;
-  const tooltipPadding = 80; // Extra space for tooltip
-  const svgHeight = height + tooltipPadding; // Add padding for tooltip space
+  const tooltipHeight = 80;
+  const tooltipPadding = 120; // Extra space for tooltip (increased)
+  const svgHeight = Math.max(height + tooltipPadding, 400); // Ensure minimum height of 400px
   
   // Determine tooltip position: if node is in top 80px, show tooltip below
   const showTooltipBelow = activeNodeObj && activeNodeObj.y < 80;
@@ -90,16 +98,20 @@ export const ACAutomaton = ({ step }) => {
         <div>
           <h3 className="font-bold text-gray-700">
             AC Automaton (Trie) <span className="text-sm font-normal text-gray-500 ml-1">/ AC自动机</span>
-            {isBuilding && (
-              <span className="ml-2 text-sm font-normal text-blue-600 bg-blue-100 px-2 py-1 rounded">
-                Building Phase / 构建阶段
-              </span>
-            )}
+            <span className={`ml-2 text-sm font-normal px-2 py-1 rounded ${
+              phase === 'build_trie' ? 'text-blue-600 bg-blue-100' :
+              phase === 'build_failure' ? 'text-purple-600 bg-purple-100' :
+              'text-green-600 bg-green-100'
+            }`}>
+              {stageLabel.en} / {stageLabel.zh}
+            </span>
           </h3>
           <p className="text-xs text-gray-500">
-            {isBuilding 
-              ? "Building Trie and Failure Links Step-by-Step / 逐步构建 Trie 和失败链接"
-              : "State Tree Structure with Transitions (Solid) & Fail Links (Dashed) / 状态树结构：实线为转移，虚线为失败链接"
+            {phase === 'build_trie' 
+              ? "Stage 1: Building Trie by inserting patterns step-by-step / 阶段 1：逐步插入模式串构建 Trie"
+              : phase === 'build_failure'
+              ? "Stage 2: Building failure links using BFS traversal / 阶段 2：使用 BFS 遍历构建失败链接"
+              : "Stage 3: Searching text using the AC automaton / 阶段 3：使用 AC 自动机搜索文本"
             }
           </p>
         </div>
@@ -279,10 +291,10 @@ export const ACAutomaton = ({ step }) => {
                   <g transform={`translate(${activeNodeObj.x}, ${activeNodeObj.y + tooltipYOffset})`}>
                     {/* Tooltip background with rounded corners */}
                     <rect 
-                      x="-120" 
-                      y={showTooltipBelow ? "-5" : "-65"} 
-                      width="240" 
-                      height="60" 
+                      x="-140" 
+                      y={showTooltipBelow ? "-5" : "-75"} 
+                      width="280" 
+                      height={showTooltipBelow ? "80" : "80"}
                       rx="8" 
                       ry="8"
                       fill="#dbeafe" 
@@ -307,30 +319,52 @@ export const ACAutomaton = ({ step }) => {
                         strokeWidth="2"
                       />
                     )}
-                    {/* English description */}
-                    <text 
-                      x="0" 
-                      y={showTooltipBelow ? "25" : "-35"} 
-                      textAnchor="middle" 
-                      fill="#1e3a8a" 
-                      fontSize="13" 
-                      fontWeight="600"
-                      fontFamily="system-ui, -apple-system, sans-serif"
+                    {/* Use foreignObject for text wrapping */}
+                    <foreignObject 
+                      x="-135" 
+                      y={showTooltipBelow ? "0" : "-70"} 
+                      width="270" 
+                      height="75"
                     >
-                      {step.desc.en || "Ready to start..."}
-                    </text>
-                    {/* Chinese description */}
-                    <text 
-                      x="0" 
-                      y={showTooltipBelow ? "45" : "-15"} 
-                      textAnchor="middle" 
-                      fill="#3b82f6" 
-                      fontSize="11" 
-                      fontWeight="500"
-                      fontFamily="system-ui, -apple-system, sans-serif"
-                    >
-                      {step.desc.zh || "准备开始..."}
-                    </text>
+                      <div 
+                        xmlns="http://www.w3.org/1999/xhtml"
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          justifyContent: 'center',
+                          alignItems: 'center',
+                          height: '100%',
+                          padding: '8px',
+                          textAlign: 'center',
+                          wordWrap: 'break-word',
+                          overflowWrap: 'break-word'
+                        }}
+                      >
+                        <div 
+                          style={{
+                            color: '#1e3a8a',
+                            fontSize: '13px',
+                            fontWeight: '600',
+                            fontFamily: 'system-ui, -apple-system, sans-serif',
+                            marginBottom: '4px',
+                            lineHeight: '1.4'
+                          }}
+                        >
+                          {step.desc.en || "Ready to start..."}
+                        </div>
+                        <div 
+                          style={{
+                            color: '#3b82f6',
+                            fontSize: '11px',
+                            fontWeight: '500',
+                            fontFamily: 'system-ui, -apple-system, sans-serif',
+                            lineHeight: '1.4'
+                          }}
+                        >
+                          {step.desc.zh || "准备开始..."}
+                        </div>
+                      </div>
+                    </foreignObject>
                   </g>
                 )}
               </>

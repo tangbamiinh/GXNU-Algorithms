@@ -164,6 +164,63 @@ export const AC_SEARCH_CODE = [
 // Legacy AC_CODE for backward compatibility
 export const AC_CODE = AC_SEARCH_CODE;
 
+// Max Flow Algorithm Code (Edmonds-Karp) - Python
+export const MAXFLOW_CODE = [
+  { line: 1, code: "    def max_flow(self):", phase: "flow" },
+  { line: 2, code: "        max_flow_value = 0", phase: "flow" },
+  { line: 3, code: "        parent = [-1] * self.num_nodes", phase: "flow" },
+  { line: 4, code: "", phase: "flow" },
+  { line: 5, code: "        # While there is a path from source to sink in residual graph", phase: "flow" },
+  { line: 6, code: "        # 当残量图中存在从源点到汇点的路径时", phase: "flow" },
+  { line: 7, code: "        while self.bfs(parent):", phase: "flow" },
+  { line: 8, code: "            path_flow = float('Inf')", phase: "flow" },
+  { line: 9, code: "            s = self.sink", phase: "flow" },
+  { line: 10, code: "", phase: "flow" },
+  { line: 11, code: "            # Find the minimum residual capacity in the path found", phase: "flow" },
+  { line: 12, code: "            # 找出所发现路径中的最小残量容量（即路径的瓶颈）", phase: "flow" },
+  { line: 13, code: "            while s != self.source:", phase: "flow" },
+  { line: 14, code: "                path_flow = min(path_flow, self.capacity[parent[s]][s])", phase: "flow" },
+  { line: 15, code: "                s = parent[s]", phase: "flow" },
+  { line: 16, code: "", phase: "flow" },
+  { line: 17, code: "            # Update residual capacities of the edges and reverse edges", phase: "flow" },
+  { line: 18, code: "            # 更新边和反向边的残量容量", phase: "flow" },
+  { line: 19, code: "            max_flow_value += path_flow", phase: "flow" },
+  { line: 20, code: "            v = self.sink", phase: "flow" },
+  { line: 21, code: "            while v != self.source:", phase: "flow" },
+  { line: 22, code: "                u = parent[v]", phase: "flow" },
+  { line: 23, code: "                self.capacity[u][v] -= path_flow  # Decrease forward capacity", phase: "flow" },
+  { line: 24, code: "                # 减少正向边的容量", phase: "flow" },
+  { line: 25, code: "                self.capacity[v][u] += path_flow  # Increase backward capacity", phase: "flow" },
+  { line: 26, code: "                # 增加反向边的容量", phase: "flow" },
+  { line: 27, code: "                v = parent[v]", phase: "flow" },
+  { line: 28, code: "", phase: "flow" },
+  { line: 29, code: "        return max_flow_value", phase: "flow" },
+];
+
+// Max Flow BFS Code - Python
+export const MAXFLOW_BFS_CODE = [
+  { line: 1, code: "    def bfs(self, parent):", phase: "bfs" },
+  { line: 2, code: "        # Find an augmenting path from source to sink using BFS", phase: "bfs" },
+  { line: 3, code: "        # 使用 BFS（广度优先搜索）查找从源点到汇点的增广路径", phase: "bfs" },
+  { line: 4, code: "        visited = [False] * self.num_nodes", phase: "bfs" },
+  { line: 5, code: "        queue = deque([self.source])", phase: "bfs" },
+  { line: 6, code: "        visited[self.source] = True", phase: "bfs" },
+  { line: 7, code: "        parent[self.source] = -1", phase: "bfs" },
+  { line: 8, code: "", phase: "bfs" },
+  { line: 9, code: "        while queue:", phase: "bfs" },
+  { line: 10, code: "            u = queue.popleft()", phase: "bfs" },
+  { line: 11, code: "            for v in self.graph[u]:", phase: "bfs" },
+  { line: 12, code: "                # If v is not visited and there is residual capacity", phase: "bfs" },
+  { line: 13, code: "                # 如果 v 未被访问且存在残量容量（即可以有流量通过）", phase: "bfs" },
+  { line: 14, code: "                if not visited[v] and self.capacity[u][v] > 0:", phase: "bfs" },
+  { line: 15, code: "                    queue.append(v)", phase: "bfs" },
+  { line: 16, code: "                    visited[v] = True", phase: "bfs" },
+  { line: 17, code: "                    parent[v] = u", phase: "bfs" },
+  { line: 18, code: "                    if v == self.sink:", phase: "bfs" },
+  { line: 19, code: "                        return True", phase: "bfs" },
+  { line: 20, code: "        return False", phase: "bfs" },
+];
+
 // Map step types to code lines with context
 export const getCodeLineForStep = (algo, stepType, step) => {
   if (algo === 'naive') {
@@ -173,7 +230,7 @@ export const getCodeLineForStep = (algo, stepType, step) => {
     if (stepType === 'match') return 12;
     return null;
   }
-  
+
   if (algo === 'kmp') {
     if (stepType === 'init') return 5;
     if (stepType === 'compare') return 9;
@@ -182,7 +239,7 @@ export const getCodeLineForStep = (algo, stepType, step) => {
     if (stepType === 'shift') return 18;
     return null;
   }
-  
+
   if (algo === 'rk') {
     if (stepType === 'init') return 12;
     if (stepType === 'compare_hash') return 18;
@@ -192,14 +249,12 @@ export const getCodeLineForStep = (algo, stepType, step) => {
     if (stepType === 'roll') return 25;
     return null;
   }
-  
+
   if (algo === 'ac') {
-    // Check if we're in building phase
-    const isBuilding = step && step.phase === 'build';
-    
-    if (isBuilding) {
-      // Building phase - line numbers in combined code
-      // Node struct: lines 1-8, Insert: lines 10-21, Build failure: lines 23-51
+    const phase = step && step.phase;
+
+    if (phase === 'build_trie') {
+      // Stage 1: Building Trie - Node struct: lines 1-8, Insert: lines 10-21
       if (stepType === 'build_init') return 1; // Start of node struct
       if (stepType === 'insert_start') return 10; // insert function start
       if (stepType === 'insert_char') return 12; // for loop
@@ -207,16 +262,19 @@ export const getCodeLineForStep = (algo, stepType, step) => {
       if (stepType === 'insert_create') return 14; // newnode()
       if (stepType === 'insert_move') return 15; // cur = cur->go[...]
       if (stepType === 'insert_output') return 17; // output.push_back
-      if (stepType === 'build_fail_init') return 23; // build_failure start
-      if (stepType === 'build_fail_queue') return 25; // q.push(root)
-      if (stepType === 'build_fail_loop') return 27; // while loop
-      if (stepType === 'build_fail_check') return 28; // if(cur->go[i])
-      if (stepType === 'build_fail_traverse') return 32; // while(p && !p->go[i])
-      if (stepType === 'build_fail_set') return 34; // cur->go[i]->fail = ...
-      if (stepType === 'build_fail_optimize') return 42; // else optimization
-      if (stepType === 'build_complete') return 51; // end of function
+      if (stepType === 'stage1_complete') return 21; // end of insert function
+    } else if (phase === 'build_failure') {
+      // Stage 2: Building Failure Links - lines 1-29
+      if (stepType === 'build_fail_init') return 2; // build_failure start
+      if (stepType === 'build_fail_queue') return 5; // q.push(root)
+      if (stepType === 'build_fail_loop') return 7; // while loop
+      if (stepType === 'build_fail_check') return 11; // if(cur->go[i])
+      if (stepType === 'build_fail_traverse') return 15; // while(p && !p->go[i])
+      if (stepType === 'build_fail_set') return 17; // cur->go[i]->fail = ...
+      if (stepType === 'build_fail_optimize') return 25; // else optimization
+      if (stepType === 'stage2_complete') return 29; // end of function
     } else {
-      // Search phase
+      // Stage 3: Search phase
       if (stepType === 'input') return 5;
       if (stepType === 'goto') return 8;
       if (stepType === 'match') return 10;
@@ -224,39 +282,77 @@ export const getCodeLineForStep = (algo, stepType, step) => {
     }
     return null;
   }
-  
+
+  if (algo === 'maxflow') {
+    const phase = step && step.phase;
+
+    if (phase === 'bfs') {
+      // BFS phase
+      if (stepType === 'bfs_init') return 1;
+      if (stepType === 'bfs_queue') return 5;
+      if (stepType === 'bfs_loop') return 9;
+      if (stepType === 'bfs_check') return 14;
+      if (stepType === 'bfs_visit') return 16;
+      if (stepType === 'bfs_found') return 19;
+      if (stepType === 'bfs_not_found') return 20;
+    } else {
+      // Flow augmentation phase
+      if (stepType === 'flow_init') return 1;
+      if (stepType === 'flow_while') return 7;
+      if (stepType === 'flow_find_min') return 13;
+      if (stepType === 'flow_update') return 21;
+      if (stepType === 'flow_augment') return 19;
+      if (stepType === 'flow_complete') return 29;
+    }
+    return null;
+  }
+
   return null;
 };
 
 // Get appropriate AC code based on phase
 export const getACCode = (phase) => {
-  if (phase === 'build') {
-    // Return combined code for building phase
+  if (phase === 'build_trie') {
+    // Stage 1: Building the Trie
     let lineNum = 1;
     const combined = [];
-    
+
     // Add node struct code
     AC_NODE_CODE.forEach(line => {
       combined.push({ ...line, line: lineNum++ });
     });
-    
+
     // Add blank line
-    combined.push({ line: lineNum++, code: "", phase: "build" });
-    
+    combined.push({ line: lineNum++, code: "", phase: "build_trie" });
+
     // Add insert function code
     AC_INSERT_CODE.forEach(line => {
       combined.push({ ...line, line: lineNum++ });
     });
-    
-    // Add blank line
-    combined.push({ line: lineNum++, code: "", phase: "build" });
-    
+
+    return combined;
+  } else if (phase === 'build_failure') {
+    // Stage 2: Building Failure Links
+    let lineNum = 1;
+    const combined = [];
+
     // Add build_failure function code
     AC_BUILD_FAILURE_CODE.forEach(line => {
       combined.push({ ...line, line: lineNum++ });
     });
-    
+
     return combined;
+  } else {
+    // Stage 3: Search
+    return AC_SEARCH_CODE;
   }
-  return AC_SEARCH_CODE;
+};
+
+// Get appropriate Max Flow code based on phase
+export const getMaxFlowCode = (phase) => {
+  if (phase === 'bfs') {
+    return MAXFLOW_BFS_CODE;
+  } else {
+    return MAXFLOW_CODE;
+  }
 };
